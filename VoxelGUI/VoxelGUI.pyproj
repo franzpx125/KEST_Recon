@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>a7788340-917e-456b-b482-5415c3be5622</ProjectGuid>
+    <ProjectGuid>{a7788340-917e-456b-b482-5415c3be5622}</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>VoxelGUI.py</StartupFile>
     <SearchPath>
@@ -22,7 +22,32 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="VoxHDFViewer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VoxLogPanel.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VoxMainPanel.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VoxMainWindow.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VoxPreprocessingPanel.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VoxSidebar.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="_VoxImagePanel.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tifffile.py" />
     <Compile Include="VoxelGUI.py" />
+    <Compile Include="VoxImageViewer.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
