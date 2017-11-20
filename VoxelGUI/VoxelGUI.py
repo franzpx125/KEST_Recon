@@ -35,7 +35,7 @@ if __name__ == '__main__':
 	viewer = VoxMainWindow()
 	#viewer.sidebar.hdfViewerTab.setHDF5File("C:\\Temp\\91777.nxs")
 	#viewer.mainPanel.imageViewer.setImage(tifffile.imread("C:\\Temp\\lena32f.tif"))
-	f = h5py.File("C:\\Users\\Franz\\Documents\\MyProjects\\voxel\\voxel_data_files\\rule2.vox", 'r')
+	f = h5py.File("C:\\Users\\Franz\\Documents\\MyProjects\\voxel\\voxel_data_files\\card6.vox", 'r')
 	dataset = f['C']
 	im = numpy.empty((2048,2048), dtype=dataset.dtype)
 	dataset.read_direct(im, numpy.s_[:,:])
