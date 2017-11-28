@@ -1,10 +1,13 @@
 import os.path 
 import h5py
 
-from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy, QLabel, QApplication
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QGroupBox, QSplitter, QTreeWidgetItemIterator
+from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QGroupBox, QSplitter
+from PyQt5.QtWidgets import QApplication, QTreeWidgetItemIterator, QFrame, QLabel
 from PyQt5.QtGui import QIcon, QFont, QFontMetrics
 from PyQt5.QtCore import Qt
+
+from VoxUtils import eprint
 
 HDFVIEW_METADATA_LABEL = "Metadata"
 
@@ -17,7 +20,7 @@ class VoxHDFViewer(QWidget):
 		self.HDF5File = None
 						
 		# Add a tree view control and a description panel (resizable):
-		self.treeWidget = QTreeWidget()
+		self.treeWidget = QTreeWidget()		
 		self.root = QTreeWidgetItem() 
 		self.showMetadata = QGroupBox()
 		self.showMetadataLayout = QVBoxLayout()
@@ -113,7 +116,7 @@ class VoxHDFViewer(QWidget):
 				self._initTreeElements(self.HDF5File[key], self.root)
 
 		except IOError as e:             
-			 print("Unable to open file: " + self.HDF5File + ".\n")   
+			 eprint("Unable to open file: " + self.HDF5File + ".")   
 
 
 
@@ -127,7 +130,7 @@ class VoxHDFViewer(QWidget):
 		
 		except IOError as e:         
 				
-			print("Unable to open file: " + filename + ".\n")   
+			eprint("Unable to open file: " + filename + ".")   
 			raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
 
@@ -227,12 +230,13 @@ class VoxHDFViewer(QWidget):
 					labelsList = []
 					for attr in h5Item.attrs.keys():					
 						attrLabel = QLabel()
-						attrLabel.setText("    " + str(attr) + " = " + str(h5Item.attrs[attr].decode('utf-8')))
+						#attrLabel.setText("    " + str(attr) + " = " + str(h5Item.attrs[attr].decode('utf-8')))
+						attrLabel.setText("    " + str(attr) + " = " + str(h5Item.attrs[attr]))
 						labelsList.append(attrLabel)
 						self.showMetadataLayout.addWidget(attrLabel)
 
 			except:
-				print("Error while reading attributes from " + self.HDF5File.filename + ".\n")   
+				eprint("Error while reading attributes from " + self.HDF5File.filename + ".")   
 				
 			# Add a foo spacer for a vertical top alignment:
 			spacer = QWidget()
@@ -242,7 +246,7 @@ class VoxHDFViewer(QWidget):
 
 		except:
 				
-			print("Error while reading element from " + self.HDF5File.filename + ".\n")   
+			eprint("Error while reading element from " + self.HDF5File.filename + ".")   
 
 		finally:
 			# Restore mouse cursor:

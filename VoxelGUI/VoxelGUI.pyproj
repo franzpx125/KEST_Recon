@@ -22,6 +22,19 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="QtProperty\pyqtcore.py" />
+    <Compile Include="QtProperty\qtbuttonpropertybrowser.py" />
+    <Compile Include="QtProperty\qteditorfactory.py" />
+    <Compile Include="QtProperty\qtgroupboxpropertybrowser.py" />
+    <Compile Include="QtProperty\qtpropertybrowser.py" />
+    <Compile Include="QtProperty\qtpropertybrowserutils.py" />
+    <Compile Include="QtProperty\qtpropertybrowser_rc.py" />
+    <Compile Include="QtProperty\qtpropertymanager.py" />
+    <Compile Include="QtProperty\qttreepropertybrowser.py" />
+    <Compile Include="QtProperty\qtvariantproperty.py" />
+    <Compile Include="QtProperty\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="VoxHDFViewer.py">
       <SubType>Code</SubType>
     </Compile>
@@ -37,7 +50,13 @@
     <Compile Include="VoxPreprocessingPanel.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="VoxRefocusingPanel.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="VoxSidebar.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VoxUtils.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="_VoxImagePanel.py">
@@ -48,6 +67,27 @@
     <Compile Include="VoxImageViewer.py">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="QtProperty\" />
+    <Folder Include="resources\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="QtProperty\qtpropertybrowser.qrc" />
+    <Content Include="resources\btnDrag.png" />
+    <Content Include="resources\btnFitToScreen.png" />
+    <Content Include="resources\btnSelect.png" />
+    <Content Include="resources\btnZoomIn.png" />
+    <Content Include="resources\btnZoomOut.png" />
+    <Content Include="resources\btnZoomSelect.png" />
+    <Content Include="resources\compound.png" />
+    <Content Include="resources\dataset.png" />
+    <Content Include="resources\folder.png" />
+    <Content Include="resources\home.png" />
+    <Content Include="resources\link.png" />
+    <Content Include="resources\logo_voxel.png" />
+    <Content Include="resources\text.png" />
+    <Content Include="resources\warning.png" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

@@ -4,9 +4,9 @@
 
 import numpy as np
 
-from PyQt5.QtCore import Qt, QRectF, pyqtSignal
+from PyQt5.QtCore import Qt, QRectF, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap, QPainterPath, QWheelEvent
-from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene
+from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QFrame
 
 
 class _VoxImagePanel(QGraphicsView):
@@ -34,6 +34,9 @@ class _VoxImagePanel(QGraphicsView):
 
     def __init__(self):
         QGraphicsView.__init__(self)
+
+        # Remove frame and set background:
+        self.setFrameStyle(QFrame.NoFrame)
 
         # QImage used to match the requirements of QGraphicsView:
         self.qImage = None 
@@ -75,7 +78,6 @@ class _VoxImagePanel(QGraphicsView):
         # Left mouse button is False for pan - True for zoom:
         self.togglePanZoom = False 
         self.__rightMouseDown = True
-
 
     def hasImage(self):
         """ Returns whether or not the scene contains an image pixmap.
@@ -143,6 +145,7 @@ class _VoxImagePanel(QGraphicsView):
         self._updateImageLUT()    
         self.updateViewer()   
 
+
     def updateViewer(self):
         """ Show current zoom (if showing entire image, apply current aspect ratio mode).
         """
@@ -158,7 +161,8 @@ class _VoxImagePanel(QGraphicsView):
             self.zoomStack = []  
             # Show entire image (use current aspect ratio mode):
             self.fitInView(self.sceneRect(), self.aspectRatioMode)  
-      
+   
+               
     def performZoom(self, zoom_factor, event=None):
 
          # Set Anchors:
@@ -199,9 +203,9 @@ class _VoxImagePanel(QGraphicsView):
 
                 # Set the correct zoom factor (which is not the input
                 # parameter but it depends on the actual window size):
-                widthRatio = self.sceneRect().width() / selectionBBox.width() 
-                heightRatio = self.sceneRect().height() / selectionBBox.height() 
-                self.zoomFactor = max(1.0, max(widthRatio,heightRatio))
+                widthRatio = self.sceneRect().width() / (selectionBBox.width() + 0.001)
+                heightRatio = self.sceneRect().height() / (selectionBBox.height() + 0.001)
+                self.zoomFactor = max(widthRatio,heightRatio)
               
                 
                 
@@ -210,7 +214,15 @@ class _VoxImagePanel(QGraphicsView):
         """       
         if self.npImage is not None:
             # Re-paint the scene:
-            self.performZoom(self.zoomFactor)
+            #self.performZoom(self.zoomFactor)
+            self.updateViewer()
+
+            # Set the correct new zoom factor (which is not the input
+            # parameter but it depends on the actual window size):
+            selectionBBox = self.mapToScene(self.rect()).boundingRect()
+            widthRatio = self.sceneRect().width() / (selectionBBox.width() + 0.001)
+            heightRatio = self.sceneRect().height() / (selectionBBox.height() + 0.001) 
+            self.zoomFactor = max(widthRatio,heightRatio)
 
     def leaveEvent(self, event):
         """ Called when when the mouse goes out of the widget
@@ -224,6 +236,10 @@ class _VoxImagePanel(QGraphicsView):
         """ Hover event to signal position and gray level.
         """
         if self.npImage is not None:
+            
+            # To fix a bug while pan:
+            self.scene.update()
+            
             # Get position in image space (watch what is x and what is y!):
             scenePos = self.mapToScene(event.pos())
             x = np.floor(scenePos.x()).astype(np.int32)

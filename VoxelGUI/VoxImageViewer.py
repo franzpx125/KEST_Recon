@@ -2,9 +2,25 @@ import os.path
 
 from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy
 from PyQt5.QtWidgets import QToolButton, QSpacerItem, QLabel
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon, QFont, QBrush, QColor, QPalette
 
 from _VoxImagePanel import _VoxImagePanel
+
+dir = os.path.dirname(os.path.realpath(__file__))
+PAN_ZOOM_ICON = dir + "/resources/btnDrag.png"
+PAN_ZOOM_TOOLTIP = "Pan (Mouse Left)"
+
+ZOOM_SELECT_ICON = dir + "/resources/btnZoomSelect.png"
+ZOOM_SELECT_TOOLTIP = "ROI Zoom (Mouse Left)"
+
+ZOOM_IN_ICON = dir + "/resources/btnZoomIn.png"
+ZOOM_IN_TOOLTIP = "Zoom In (Mouse Wheel)"
+
+ZOOM_OUT_ICON = dir + "/resources/btnZoomOut.png"
+ZOOM_OUT_TOOLTIP = "Zoom Out (Mouse Wheel)"
+
+ZOOM_RESET_ICON = dir + "/resources/btnFitToScreen.png"
+ZOOM_RESET_TOOLTIP = "Zoom Fit (Mouse Double Click Left)"
 
 class VoxImageViewer(QWidget):
 
@@ -21,20 +37,37 @@ class VoxImageViewer(QWidget):
 		self.toolBar.setSizePolicy(toolbarSizePolicy)
 
 		# Buttons on the left:
-		dir = os.path.dirname(os.path.realpath(__file__))
-		pan_zoom = QAction(QIcon(dir + "/resources/btnDrag.png"),"Pan / ROI Zoom (Mouse Left)",self)        
-		self.toolBar.addAction(pan_zoom)
-		zoomIn = QAction(QIcon(dir + "/resources/btnZoomIn.png"),"Zoom In (Mouse Wheel)",self)        
-		self.toolBar.addAction(zoomIn)
-		zoomOut = QAction(QIcon(dir + "/resources/btnZoomOut.png"),"Zoom Out (Mouse Wheel)",self)        
-		self.toolBar.addAction(zoomOut)
-		zoomReset = QAction(QIcon(dir + "/resources/btnFitToScreen.png"),"Zoom Fit (Mouse Double Click Left)",self)        
-		self.toolBar.addAction(zoomReset)
+		
 
-		#toolButton = QToolButton(self)
-		#toolButton.setIcon(QIcon("./resources/btnSelect.png"))
-		#toolButton.setCheckable(True)
-		#self.toolBar.addWidget(toolButton)
+		#pan_zoom = QAction(QIcon(dir + "/resources/btnDrag.png"),"Pan (Mouse Left)",self)        
+		#self.toolBar.addAction(pan_zoom)
+		#zoomSelect = QAction(QIcon(dir + "/resources/btnZoomSelect.png"),"ROI Zoom (Mouse Left)",self)        
+		#self.toolBar.addAction(zoomSelect)
+
+		self._panZoom = QToolButton(self)
+		self._panZoom.setIcon(QIcon(PAN_ZOOM_ICON))
+		self._panZoom.setToolTip(PAN_ZOOM_TOOLTIP)
+		self._panZoom.setCheckable(True)
+		self._panZoom.setChecked(True)
+		self._panZoom.clicked.connect(self._panZoomSwitch)
+		self.toolBar.addWidget(self._panZoom)
+
+		self._zoomSelect = QToolButton(self)
+		self._zoomSelect.setIcon(QIcon(ZOOM_SELECT_ICON))
+		self._zoomSelect.setToolTip(ZOOM_SELECT_TOOLTIP)
+		self._zoomSelect.setCheckable(True)
+		self._zoomSelect.setChecked(False)
+		self._zoomSelect.clicked.connect(self._zoomSelectSwitch)
+		self.toolBar.addWidget(self._zoomSelect)
+
+		self.toolBar.addSeparator()
+
+		zoomIn = QAction(QIcon(ZOOM_IN_ICON),ZOOM_IN_TOOLTIP,self)        
+		self.toolBar.addAction(zoomIn)
+		zoomOut = QAction(QIcon(ZOOM_OUT_ICON),ZOOM_OUT_TOOLTIP,self)        
+		self.toolBar.addAction(zoomOut)
+		zoomReset = QAction(QIcon(ZOOM_RESET_ICON),ZOOM_RESET_TOOLTIP,self)        
+		self.toolBar.addAction(zoomReset)
 						
 		# Spacer:
 		spacer = QWidget()
@@ -61,14 +94,35 @@ class VoxImageViewer(QWidget):
 		layout = QVBoxLayout()	
 		layout.addWidget(self.toolBar)
 		layout.addWidget(self.imagePanel)	
-		layout.setContentsMargins(0,0,0,1)	
+		layout.setContentsMargins(0,0,0,0)	
 		self.setLayout(layout)
+		self.setContentsMargins(0,0,0,0)	
 
+	#def drawBackground(self, painter, rect):
 
+	#	color = self.palette().color(QPalette.Background)
+	#	background_brush = QBrush( color, Qt.SolidPattern)
+	#	painter.fillRect(rect, background_brush)
+
+	def _panZoomSwitch(self):
+
+		self._zoomSelect.setChecked(not self._panZoom.isChecked())
+		self.imagePanel.togglePanZoom = self._zoomSelect.isChecked()
+
+	def _zoomSelectSwitch(self):
+
+		self._panZoom.setChecked(not self._zoomSelect.isChecked())
+		self.imagePanel.togglePanZoom = self._zoomSelect.isChecked()
+		
 	def _toolBarBtnPressed(self, button):
 
-		if button.text() == "Pan / ROI Zoom (Mouse Left)":
-			self.imagePanel.togglePanZoom = not self.imagePanel.togglePanZoom
+		if button.text() == ZOOM_IN_TOOLTIP:
+			self.imagePanel.performZoom(min(400.0,self.imagePanel.zoomFactor*1.15))
+		elif button.text() == ZOOM_OUT_TOOLTIP:
+			self.imagePanel.performZoom(max(1.0,self.imagePanel.zoomFactor/1.15))
+		elif button.text() == ZOOM_RESET_TOOLTIP:
+			self.imagePanel.performZoom(1.0)
+
 
 
 	def _handleMouseHover(self, x, y, z):
@@ -76,7 +130,7 @@ class VoxImageViewer(QWidget):
 		if (x == -1):
 			self.hoverLabel.setText("")
 		else:
-			self.hoverLabel.setText("[" + str(x) + "," + str(y) + "]=" + s)
+			self.hoverLabel.setText("[" + str(x) + "," + str(y) + "]=" + s + " " )
 
 
 	def setImage(self, npImage):

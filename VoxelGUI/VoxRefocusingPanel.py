@@ -16,11 +16,30 @@ from PyQt5.QtCore import QVariant, QSize
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import QWidget, QSizePolicy, QPushButton, QHBoxLayout
 
+from QtProperty.pyqtcore import QList
 from QtProperty.qtvariantproperty import QtVariantEditorFactory, QtVariantPropertyManager
 from QtProperty.qttreepropertybrowser import QtTreePropertyBrowser
 from QtProperty.qtgroupboxpropertybrowser import QtGroupBoxPropertyBrowser
+from QtProperty.qtpropertymanager import (
+    QtBoolPropertyManager, 
+    QtIntPropertyManager, 
+    QtStringPropertyManager, 
+    QtSizePropertyManager, 
+    QtRectPropertyManager, 
+    QtSizePolicyPropertyManager, 
+    QtEnumPropertyManager, 
+    QtGroupPropertyManager
+    )
+from QtProperty.qteditorfactory import (
+    QtCheckBoxFactory, 
+    QtSpinBoxFactory, 
+    QtSliderFactory, 
+    QtScrollBarFactory, 
+    QtLineEditFactory, 
+    QtEnumEditorFactory
+    )
 
-class VoxPreprocessingPanel(QWidget):
+class VoxRefocusingPanel(QWidget):
 
 	def __init__(self):
 
@@ -50,56 +69,77 @@ class VoxPreprocessingPanel(QWidget):
 		spacer.setSizePolicy(spacerSizePolicy)
 	
         # Configuration:
-		self.inputLensletItem = self.variantManager.addProperty(\
-            QtVariantPropertyManager.groupTypeId(), "Input lenslet")
+		self.methodItem = self.variantManager.addProperty(\
+            QtVariantPropertyManager.groupTypeId(), "Method")
 	
-		item = self.variantManager.addProperty(QVariant.Double, "Width")
-		item.setValue(1.2345)
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		self.inputLensletItem.addSubProperty(item)
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
+		enumNames = QList()
+		enumNames.append("Integration")
+		enumNames.append("Fourier")
+		enumNames.append("Backprojection")
+		enumNames.append("SIRT")
+		item.setAttribute("enumNames", enumNames)
+		item.setValue(5)
+		self.methodItem.addSubProperty(item)
 
-		item = self.variantManager.addProperty(QVariant.Double, "Height")
-		item.setValue(1.2345)
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		self.inputLensletItem.addSubProperty(item)
+		item = self.variantManager.addProperty(QVariant.Int, "Iterations")
+		item.setValue(1)
+		item.setAttribute("minimum", 1)
+		item.setAttribute("maximum", 1000)
+		item.setAttribute("singleStep", 1)
+		self.methodItem.addSubProperty(item)
 
-		item = self.variantManager.addProperty(QVariant.Double, "Offset Top")
-		item.setValue(1.2345)
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		self.inputLensletItem.addSubProperty(item)
+		item = self.variantManager.addProperty(QVariant.Int, "Upsampling")
+		item.setValue(1)
+		item.setAttribute("minimum", 1)
+		item.setAttribute("maximum", 1000)
+		item.setAttribute("singleStep", 1)
+		self.methodItem.addSubProperty(item)
+
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Padding")
+		enumNames = QList()
+		enumNames.append("Zero")
+		enumNames.append("Edge")
+		enumNames.append("Symmetric")
+		item.setAttribute("enumNames", enumNames)
+		item.setValue(4)
+		self.methodItem.addSubProperty(item)
 
 		
-		item = self.variantManager.addProperty(QVariant.Double, "Offset Left")
+		item = self.variantManager.addProperty(QVariant.Int, "Padding width")
+		item.setValue(5)
+		item.setAttribute("minimum", 1)
+		item.setAttribute("maximum", 1000)
+		item.setAttribute("singleStep", 1)
+		self.methodItem.addSubProperty(item)
+
+		item = self.variantManager.addProperty(QVariant.Int, "Supersampling")
+		item.setValue(1)
+		item.setAttribute("minimum", 1)
+		item.setAttribute("maximum", 1000)
+		item.setAttribute("singleStep", 1)
+		self.methodItem.addSubProperty(item)
+
+		self.distancesItem = self.variantManager.addProperty(\
+			QtVariantPropertyManager.groupTypeId(), "Refocusing distances")
+	
+		item = self.variantManager.addProperty(QVariant.Double, "Minimum")
 		item.setValue(1.2345)
 		item.setAttribute("singleStep", 0.1)
 		item.setAttribute("decimals", 3)
-		self.inputLensletItem.addSubProperty(item)
+		self.distancesItem.addSubProperty(item)
 
-		self.outputLensletItem = self.variantManager.addProperty(\
-			QtVariantPropertyManager.groupTypeId(), "Output lenslet")
-	
-		item = self.variantManager.addProperty(QVariant.Int, "Width")
-		item.setValue(16)
-		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 1024)
-		item.setAttribute("singleStep", 1)
-		self.outputLensletItem.addSubProperty(item)
+		item = self.variantManager.addProperty(QVariant.Double, "Maximum")
+		item.setValue(1.2345)
+		item.setAttribute("singleStep", 0.1)
+		item.setAttribute("decimals", 3)
+		self.distancesItem.addSubProperty(item)
 
-		item = self.variantManager.addProperty(QVariant.Int, "Height")
-		item.setValue(16)
-		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 1024)
-		item.setAttribute("singleStep", 1)
-		self.outputLensletItem.addSubProperty(item)
-
-		#item = self.variantManager.addProperty(QVariant.Size, "Output Lenslet")
-		#item.setValue(QSize(20, 20))
-		#item.setAttribute("minimum", QSize(10, 10))
-		#item.setAttribute("maximum", QSize(30, 30))
-		#self.outputLensletItem.addSubProperty(item)
+		item = self.variantManager.addProperty(QVariant.Double, "Step")
+		item.setValue(0.1)
+		item.setAttribute("singleStep", 0.1)
+		item.setAttribute("decimals", 3)
+		self.distancesItem.addSubProperty(item)
 
 		#item = variantManager.addProperty(QVariant.Bool, " Bool Property")
 		#item.setValue(True)
@@ -282,8 +322,8 @@ class VoxPreprocessingPanel(QWidget):
 		#self.variantEditor = QtGroupBoxPropertyBrowser()
 		self.variantEditor = QtTreePropertyBrowser()
 		self.variantEditor.setFactoryForManager(self.variantManager, self.variantFactory)
-		self.variantEditor.addProperty(self.inputLensletItem)
-		self.variantEditor.addProperty(self.outputLensletItem)
+		self.variantEditor.addProperty(self.methodItem)
+		self.variantEditor.addProperty(self.distancesItem)
 		self.variantEditor.setPropertiesWithoutValueMarked(True)
 		self.variantEditor.setRootIsDecorated(False)
 		self.variantEditor.setHeaderVisible(False)
@@ -295,3 +335,5 @@ class VoxPreprocessingPanel(QWidget):
 		layout.addWidget(spacer)    
 		layout.setContentsMargins(0,0,0,0)	
 		self.setLayout(layout)
+
+

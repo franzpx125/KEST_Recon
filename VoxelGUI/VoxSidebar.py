@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt
 
 from VoxHDFViewer import VoxHDFViewer
 from VoxPreprocessingPanel import VoxPreprocessingPanel
+from VoxRefocusingPanel import VoxRefocusingPanel
 
 VOX_SIDEBAR_HDFVIEW = "Dataset Info"
 VOX_SIDEBAR_PREPROC = "Pre-processing"
@@ -29,10 +30,7 @@ class VoxSidebar(QWidget):
 		self.alignmentTab = VoxPreprocessingPanel()
 
 		# Configure the refocusing tab:
-		self.refocusingTab = QGroupBox()
-		self.refocusingTabLayout = QVBoxLayout()
-		self.refocusingTab.setTitle("Refocusing")
-		self.refocusingTab.setLayout(self.refocusingTabLayout)
+		self.refocusingTab = VoxRefocusingPanel()
 
 		# Configure the whole widget:
 		self.toolbox.addItem(self.hdfViewerTab, VOX_SIDEBAR_HDFVIEW)

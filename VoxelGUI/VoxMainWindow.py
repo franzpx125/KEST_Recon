@@ -26,9 +26,9 @@ class VoxMainWindow(QMainWindow):
 		newfont.setPointSize(9) 
 		self.setFont(newfont)
 
-		# create progress bar
-		self.pb = QProgressBar(self.statusBar())
-		self.statusBar().addPermanentWidget(self.pb)
+		# Create progress bar:
+		#self.pb = QProgressBar(self.statusBar())
+		#self.statusBar().addPermanentWidget(self.pb)
 		
 							
 		# Add the widgets to the panel:
