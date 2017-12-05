@@ -2,16 +2,19 @@ import os.path
 import h5py
 
 from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QGroupBox, QSplitter
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QGroupBox, QSplitter, QMenu
 from PyQt5.QtWidgets import QApplication, QTreeWidgetItemIterator, QFrame, QLabel
 from PyQt5.QtGui import QIcon, QFont, QFontMetrics
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 
 from VoxUtils import eprint
 
 HDFVIEW_METADATA_LABEL = "Metadata"
 
 class VoxHDFViewer(QWidget):
+    
+	# Event raised when the user wants to show dark, white, data as image:
+	openImageDataEvent = pyqtSignal('QString', 'QString')
 
 	def __init__(self):
 
@@ -28,7 +31,9 @@ class VoxHDFViewer(QWidget):
 
 		# Configure the tree view:
 		self.treeWidget.setHeaderHidden(True)
+		self.treeWidget.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.treeWidget.itemSelectionChanged.connect(self.handleChanged)
+		self.treeWidget.customContextMenuRequested.connect(self.prepareContextMenu)
 
 		# Configure the splitter:
 		self.splitter.addWidget(self.treeWidget)
@@ -85,7 +90,8 @@ class VoxHDFViewer(QWidget):
 
 	def initTreeElements(self):
 		"""Populate the tree view with the groups and datasets of the 
-		   HDF5 file specified with setHDF5File().
+		   HDF5 file specified with setHDF5File(). A context menu is
+           added for the image data.
 		"""
 		# Get application path:
 		dir = os.path.dirname(os.path.realpath(__file__))
@@ -133,11 +139,41 @@ class VoxHDFViewer(QWidget):
 			eprint("Unable to open file: " + filename + ".")   
 			raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
+	def prepareContextMenu(self, position):
+		""" Open a context menu for the image data.
+		"""
+        # Get the selected item (only one, no multiple selection allowed):
+		curr = self.treeWidget.selectedItems()[0]
 
+		# Get the corresponding name in the HDF5 file:
+		h5Item = self.HDF5File[str(curr.data(0, Qt.UserRole))]
+		key = str(h5Item.name)
+
+		# Create the menu:		
+		menu = QMenu()
+		if ((key == "/data/dark") or (key == "/data/white") or (key == "/data/image")):
+			openAction = QAction("Open image in new tab", self)
+			openAction.triggered.connect(self.openImage)
+			menu.addAction(openAction)			
+		
+		# Show the menu:
+		menu.exec_(self.treeWidget.viewport().mapToGlobal(position))
+
+	def openImage(self):
+
+		 # Get the selected item (only one, no multiple selection allowed):
+		curr = self.treeWidget.selectedItems()[0]
+
+		# Get the corresponding name in the HDF5 file:
+		h5Item = self.HDF5File[str(curr.data(0, Qt.UserRole))]
+		key = str(h5Item.name)
+
+        # Emit the event:
+		self.openImageDataEvent.emit(self.HDF5File.filename, key)
 
 	def handleChanged(self):
-		""" Populate panel with the HDF5 content when the selection in the 
-			tree view is modified.
+		""" Populate panel with the HDF5 content (data and attributes) when the 
+			selection in the tree view is modified.
 		"""
 		# Get the selected item (only one, no multiple selection allowed):
 		curr = self.treeWidget.selectedItems()[0]
@@ -172,7 +208,14 @@ class VoxHDFViewer(QWidget):
 							if len(h5Item.value.shape) == 0:
 								text = key + " = " + str(h5Item.value) + " (" + t.name + ")"
 							elif (len(h5Item.value.shape) == 1) and (h5Item.value.shape[0] == 1):
-									text = key + " = " + str(h5Item.value[0]) #+ " (" + t.name + ")"
+								text = key + " = " + str(h5Item.value[0]) #+ " (" + t.name + ")"
+							elif (h5Item.value.shape == (2,) ):
+								text = key + " = [" + str(h5Item.value[0]) + ", " \
+											+ str(h5Item.value[1]) + "]" #+ " (" + t.name + ")"
+							elif (h5Item.value.shape == (3,) ):
+								text = key + " = [" + str(h5Item.value[0]) + ", " \
+											+ str(h5Item.value[1]) + ", "  \
+											+ str(h5Item.value[2]) + "]" #+ " (" + t.name + ")"
 							elif (len(h5Item.value.shape) == 2):
 								if (h5Item.value.shape[0] == 1):
 									if (h5Item.value.shape[1] == 1):
@@ -251,5 +294,4 @@ class VoxHDFViewer(QWidget):
 		finally:
 			# Restore mouse cursor:
 			QApplication.restoreOverrideCursor()
-
 

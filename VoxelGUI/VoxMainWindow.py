@@ -1,6 +1,7 @@
 import sys
 import os.path 
 import h5py
+import numpy
 
 from PyQt5.QtWidgets import QMainWindow, QAction, QHBoxLayout, QToolBox, QSizePolicy, QMessageBox
 from PyQt5.QtWidgets import QTextEdit, QSplitter, QStatusBar, QProgressBar, QFileDialog
@@ -9,6 +10,7 @@ from PyQt5.QtCore import Qt
 
 from VoxMainPanel import VoxMainPanel
 from VoxSidebar import VoxSidebar
+from VoxUtils import eprint
 
 SW_TITLE = "VOXELRecon - v. 0.1 alpha"
 
@@ -36,7 +38,8 @@ class VoxMainWindow(QMainWindow):
 		self.mainPanel = VoxMainPanel()		
 		self.splitter = QSplitter(Qt.Horizontal)
 
-		# Configure the image viewer:
+		# Configure the sidebar:
+		self.sidebar.hdfViewerTab.openImageDataEvent.connect(self.openImage)
 
 
 		# Configure the splitter:
@@ -77,8 +80,8 @@ class VoxMainWindow(QMainWindow):
 		aboutAction.setStatusTip("Show application info")
 		aboutAction.triggered.connect(self.exitApplication)
 
-		self.helpMenu = self.menuBar().addMenu(self.tr("&Help"))
-		self.helpMenu.addAction(aboutAction)
+		#self.helpMenu = self.menuBar().addMenu(self.tr("&Help"))
+		#self.helpMenu.addAction(aboutAction)
 		#self.helpMenu.addAction(self.aboutQtAct)
 
 
@@ -91,12 +94,35 @@ class VoxMainWindow(QMainWindow):
 
 	def openFile(self):
 
-		options = QFileDialog.Options()
-		options |= QFileDialog.DontUseNativeDialog
-		filename, _ = QFileDialog.getOpenFileName(self,"Open VOXEL file", 
-                      "","VOXEL Files (*.vox);;All Files (*)", options=options)
-		if filename:
-			self.sidebar.hdfViewerTab.setHDF5File(filename)
+		try:
+			options = QFileDialog.Options()
+			options |= QFileDialog.DontUseNativeDialog
+			filename, _ = QFileDialog.getOpenFileName(self,"Open VOXEL file", 
+						  "","VOXEL Files (*.vox);;All Files (*)", options=options)
+			if filename:
+				# Open in sidebar:
+				self.sidebar.hdfViewerTab.setHDF5File(filename)
+
+				# By default open a tab with the main image:
+				self.openImage(filename, '/data/image')
+
+		except Exception as e:
+			eprint(str(e))
+
+
+	def openImage(self, filename, key):
+		""" Called when user wants to open a new tab with an image.
+		"""
+
+		# Load the specified 'key' image from the HDF5 specified file:
+		f = h5py.File(filename, 'r')
+		dataset = f[key]
+		im = numpy.empty(dataset.shape, dtype=dataset.dtype)
+		dataset.read_direct(im, numpy.s_[:,:])
+
+		# Open a new tab in the image viewer:
+		self.mainPanel.addTab(im, str(os.path.basename(filename)) + " - " + \
+			"Raw " + str(os.path.basename(key)))
 
 	def closeEvent(self, event):
 		""" Override of the window close() event.

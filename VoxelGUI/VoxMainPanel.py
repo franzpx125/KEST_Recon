@@ -25,10 +25,7 @@ class VoxMainPanel(QWidget):
 
 		# Prepare the log panel:
 		self.log = VoxLogPanel()		
-		self.splitter = QSplitter(Qt.Vertical)
-
-		# TO DO DYNAMICALLY: Configure the image viewer:
-		self.tabImageViewers.addTab(self.imageViewer, "Raw Image")		   
+		self.splitter = QSplitter(Qt.Vertical) 
 
 		# Configure the splitter:
 		self.splitter.addWidget(self.tabImageViewers)
@@ -43,6 +40,17 @@ class VoxMainPanel(QWidget):
 		# Default ratio between image viewer and log panel:
 		self.imageViewer.resize( self.width(), int(round(self.height() * 0.85)))
 
+	def addTab(self, image, tabname):
+		""" Add a new tab with the specified image.
+		"""
+		# Create and add:
+		imageViewer = VoxImageViewer()
+		imageViewer.setImage(image)
+		self.tabImageViewers.addTab(imageViewer, tabname)	
+
+		# To have it active:
+		self.tabImageViewers.setCurrentIndex(self.tabImageViewers.count() - 1) 
+		
 
 	def removeTab(self, idx):
 		""" Called when users want to remove an image viewer.

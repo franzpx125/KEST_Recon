@@ -125,11 +125,15 @@ class VoxImageViewer(QWidget):
 
 
 
-	def _handleMouseHover(self, x, y, z):
-		s = "{:0.4f}".format(z) if (z > 1e-2) else "{:.4E}".format(z)
+	def _handleMouseHover(self, x, y, z, type):
+
 		if (x == -1):
 			self.hoverLabel.setText("")
 		else:
+			if (type == 'float'):
+				s = "{:0.4f}".format(z) if (z > 1e-2) else "{:.4E}".format(z)
+			else:
+				s = "{:d}".format(round(z))
 			self.hoverLabel.setText("[" + str(x) + "," + str(y) + "]=" + s + " " )
 
 

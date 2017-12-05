@@ -71,18 +71,6 @@ if __name__ == '__main__':
 	# Create the application:
 	app = QApplication(sys.argv)
 
-
-    # Create image viewer and load an image file to display:
-	#viewer = VoxImageViewer()
-	#viewer.setImage(tifffile.imread("C:\\Temp\\lena32f.tif"))
-
-	#viewer = VoxHDFViewer()
-	#viewer.setHDF5File("C:\\Temp\\91777.nxs")
-
-	#viewer = VoxSidebar()
-	#viewer.hdfViewerTab.setHDF5File("C:\\Temp\\91777.nxs")
-
-
     # Init main window:
 	mainWindow = VoxMainWindow()
 
@@ -90,15 +78,6 @@ if __name__ == '__main__':
 	sys.stdout = Redirect(mainWindow.mainPanel.log.outputLog)
 	sys.stderr = Redirect(mainWindow.mainPanel.log.errorLog)
 
-	#viewer.sidebar.hdfViewerTab.setHDF5File("C:\\Temp\\91777.nxs")
-	#viewer.mainPanel.imageViewer.setImage(tifffile.imread("C:\\Temp\\lena32f.tif"))
-	f = h5py.File("C:\\Users\\Franz\\Documents\\MyProjects\\voxel\\voxel_data_files\\rule2.vox", 'r')
-	dataset = f['C']
-	im = numpy.empty((2048,2048), dtype=dataset.dtype)
-	dataset.read_direct(im, numpy.s_[:,:])
-	mainWindow.mainPanel.imageViewer.setImage(im)
-
-
-	# Show viewer and run application:
+	# Run application:
 	mainWindow.show()
 	sys.exit(app.exec_())

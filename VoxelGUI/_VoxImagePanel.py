@@ -30,7 +30,7 @@ class _VoxImagePanel(QGraphicsView):
     rightMouseButtonReleased = pyqtSignal(float, float)
     leftMouseButtonDoubleClicked = pyqtSignal(float, float)
     rightMouseButtonDoubleClicked = pyqtSignal(float, float)
-    mouseHoverEvent = pyqtSignal(int, int, float)
+    mouseHoverEvent = pyqtSignal(int, int, float, 'QString')
 
     def __init__(self):
         QGraphicsView.__init__(self)
@@ -43,6 +43,7 @@ class _VoxImagePanel(QGraphicsView):
 
         # Matrix of actual data in floating point format and as numpy array:
         self.npImage = None
+        self.imageType = None
 
         # For window/level correction:
         self.winMin = None
@@ -136,6 +137,7 @@ class _VoxImagePanel(QGraphicsView):
 
         # Set the new numpy image:
         self.npImage = npImage
+        self.imageType = 'float' if (npImage.dtype == np.float32) else 'int'
 
         # Find min/max from input image as numpy array:
         self.winMin = np.amin(self.npImage.astype(np.float32))
@@ -229,7 +231,7 @@ class _VoxImagePanel(QGraphicsView):
         """
         # Emit a "out-of-border" signal. This is necessary when the image is 
         # zoomed and the mouse goes out of the widget:
-        self.mouseHoverEvent.emit(-1, -1, -1)
+        self.mouseHoverEvent.emit(-1, -1, -1, 'None')
 
     
     def mouseMoveEvent(self, event):
@@ -250,10 +252,10 @@ class _VoxImagePanel(QGraphicsView):
                 (y >= 0) and (y <= (self.npImage.shape[0] - 1))):
         
                 # Emit signal with coordinates and gray value:
-                self.mouseHoverEvent.emit(x, y, self.npImage[y, x])
+                self.mouseHoverEvent.emit(x, y, self.npImage[y, x], self.imageType)
             else:
                 # Emit a "out-of-border" signal:
-                self.mouseHoverEvent.emit(-1, -1, -1)
+                self.mouseHoverEvent.emit(-1, -1, -1, 'None')
 
             # This code is called also after a mouse wheel event:
             if not isinstance(event,QWheelEvent):
