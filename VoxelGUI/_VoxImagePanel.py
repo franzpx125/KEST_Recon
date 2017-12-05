@@ -43,7 +43,7 @@ class _VoxImagePanel(QGraphicsView):
 
         # Matrix of actual data in floating point format and as numpy array:
         self.npImage = None
-        self.imageType = None
+        self.imageType = None # either 'float' or 'int'
 
         # For window/level correction:
         self.winMin = None
