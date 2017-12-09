@@ -59,6 +59,16 @@
     <Compile Include="VoxUtils.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="vox\colors.py" />
+    <Compile Include="vox\data_format.py" />
+    <Compile Include="vox\depth.py" />
+    <Compile Include="vox\dist_tools_io.py" />
+    <Compile Include="vox\lightfield.py" />
+    <Compile Include="vox\psf.py" />
+    <Compile Include="vox\refocus.py" />
+    <Compile Include="vox\solvers.py" />
+    <Compile Include="vox\tomo.py" />
+    <Compile Include="vox\__init__.py" />
     <Compile Include="_VoxImagePanel.py">
       <SubType>Code</SubType>
     </Compile>
@@ -71,6 +81,7 @@
   <ItemGroup>
     <Folder Include="QtProperty\" />
     <Folder Include="resources\" />
+    <Folder Include="vox\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="QtProperty\qtpropertybrowser.qrc" />

@@ -8444,12 +8444,12 @@ def lsm2bin(lsmfile, binfile=None, tile=(256, 256), verbose=True):
     if binfile:
         binfile += "_(z%ic%iy%ix%i)_m%%ip%%it%%03iy%%ix%%i.bin"
 
-    verbose("\nOpening LSM file... ", end='', flush=True)
+    verbose("\nOpening LSM file... ", end='')
     start_time = time.time()
 
     with TiffFile(lsmfile) as lsm:
         if not lsm.is_lsm:
-            verbose("\n", lsm, flush=True)
+            verbose("\n", lsm)
             raise ValueError("not a LSM file")
         series = lsm.series[0]  # first series contains the image data
         shape = series.shape
@@ -8458,12 +8458,12 @@ def lsm2bin(lsmfile, binfile=None, tile=(256, 256), verbose=True):
         size = product(shape) * dtype.itemsize
 
         verbose("%.3f s" % (time.time() - start_time))
-        # verbose(lsm, flush=True)
-        verbose("Image\n  axes:  %s\n  shape: %s\n  dtype: %s\n  size:  %s" % (axes, shape, dtype, format_size(size)), flush=True)
+        # verbose(lsm)
+        verbose("Image\n  axes:  %s\n  shape: %s\n  dtype: %s\n  size:  %s" % (axes, shape, dtype, format_size(size)))
         if not series.axes.endswith('TZCYX'):
             raise ValueError("not a *TZCYX LSM file")
 
-        verbose("Copying image from LSM to BIN files", end='', flush=True)
+        verbose("Copying image from LSM to BIN files", end='')
         start_time = time.time()
         tiles = shape[-2] // tile[-2], shape[-1] // tile[-1]
         if binfile:
@@ -8487,7 +8487,7 @@ def lsm2bin(lsmfile, binfile=None, tile=(256, 256), verbose=True):
                                           x * tile[1]:(x + 1) * tile[1]]
                             if binfile:
                                 out.tofile(binfile % (m, p, t, y, x))
-                            verbose('.', end='', flush=True)
+                            verbose('.', end='')
         verbose(" %.3f s" % (time.time() - start_time))
 
 

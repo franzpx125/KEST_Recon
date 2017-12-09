@@ -27,14 +27,14 @@ class VoxSidebar(QWidget):
 		self.hdfViewerTab = VoxHDFViewer()
 
 		# Configure the alignment tab:
-		self.alignmentTab = VoxPreprocessingPanel()
+		self.preprocessingTab = VoxPreprocessingPanel()
 
 		# Configure the refocusing tab:
 		self.refocusingTab = VoxRefocusingPanel()
 
 		# Configure the whole widget:
 		self.toolbox.addItem(self.hdfViewerTab, VOX_SIDEBAR_HDFVIEW)
-		self.toolbox.addItem(self.alignmentTab, VOX_SIDEBAR_PREPROC)
+		self.toolbox.addItem(self.preprocessingTab, VOX_SIDEBAR_PREPROC)
 		self.toolbox.addItem(self.refocusingTab, VOX_SIDEBAR_REFOCUS)
 
         # Define layout:

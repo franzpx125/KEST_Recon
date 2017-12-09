@@ -13,6 +13,7 @@ from PyQt5.QtCore import QVariant, QSize
 #    QRectF
 #    )
 
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import QWidget, QSizePolicy, QPushButton, QHBoxLayout
 
@@ -21,6 +22,9 @@ from QtProperty.qttreepropertybrowser import QtTreePropertyBrowser
 from QtProperty.qtgroupboxpropertybrowser import QtGroupBoxPropertyBrowser
 
 class VoxPreprocessingPanel(QWidget):
+
+    # Event raised when the user wants to show dark, white, data as image:
+	preprocessingRequestedEvent = pyqtSignal()
 
 	def __init__(self):
 
@@ -37,7 +41,7 @@ class VoxPreprocessingPanel(QWidget):
 		btnWidgetSpacer.setSizePolicy(spacerSizePolicy)
 
 		self.button = QPushButton('Apply', self)
-		#self.button.clicked.connect(self.handleButton)
+		self.button.clicked.connect(self.handleButton)
 
 		btnWidgetLayout.addWidget(btnWidgetSpacer)  
 		btnWidgetLayout.addWidget(self.button)    
@@ -295,3 +299,11 @@ class VoxPreprocessingPanel(QWidget):
 		layout.addWidget(spacer)    
 		layout.setContentsMargins(0,0,0,0)	
 		self.setLayout(layout)
+
+	def handleButton(self):
+		"""
+		"""
+
+		# Emit the event:
+		self.preprocessingRequestedEvent.emit()
+
