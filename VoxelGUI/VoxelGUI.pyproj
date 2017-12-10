@@ -35,6 +35,9 @@
     <Compile Include="QtProperty\__init__.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="VoxDepthMapPanel.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="VoxHDFViewer.py">
       <SubType>Code</SubType>
     </Compile>
