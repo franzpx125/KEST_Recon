@@ -41,6 +41,9 @@ from QtProperty.qteditorfactory import (
 
 class VoxRefocusingPanel(QWidget):
 
+	# Available refocusing algorithms:
+	available_methods = ('integration', 'Fourier', 'backprojection', 'iterative')
+
 	# Event raised when the user wants to show dark, white, data as image:
 	refocusingRequestedEvent = pyqtSignal()
 
@@ -78,55 +81,79 @@ class VoxRefocusingPanel(QWidget):
 		self.methodItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Method")
 	
-		self.__refocusingAlgorithm_Method = 0 # "integration"
+		self.__refocusingAlgorithm_Method = 2 # "integration"
 		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
 		enumNames = QList()
-		enumNames.append("integration")
-		enumNames.append("Fourier")
-		enumNames.append("backprojection")
-		enumNames.append("iterative")
+		enumNames.append(VoxRefocusingPanel.available_methods[0])
+		enumNames.append(VoxRefocusingPanel.available_methods[1])
+		enumNames.append(VoxRefocusingPanel.available_methods[2])
+		enumNames.append(VoxRefocusingPanel.available_methods[3])
 		item.setAttribute("enumNames", enumNames)
-		item.setValue(5)
+		item.setValue(self.__refocusingAlgorithm_Method)
 		self.methodItem.addSubProperty(item)        
 		self.addProperty(item, "RefocusingAlgorithm_Method")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Iterations")
-		item.setValue(1)
-		item.setAttribute("minimum", 1)
-		item.setAttribute("maximum", 1000)
-		item.setAttribute("singleStep", 1)
-		self.methodItem.addSubProperty(item)
+		self.__refocusingAlgorithm_Supersampling = 1 # default (only for tomographic methods)
+		self.itemSupersampling = self.variantManager.addProperty(QVariant.Int, "Supersampling")
+		self.itemSupersampling.setValue(self.__refocusingAlgorithm_Supersampling)
+		self.itemSupersampling.setAttribute("minimum", 1)
+		self.itemSupersampling.setAttribute("maximum", 16)
+		self.itemSupersampling.setAttribute("singleStep", 1)
+		self.methodItem.addSubProperty(self.itemSupersampling)
+		self.addProperty(self.itemSupersampling, "RefocusingAlgorithm_Supersampling")
 
+		self.__refocusingAlgorithm_Iterations = 10 # default for SIRT
+		self.itemIterations = self.variantManager.addProperty(QVariant.Int, "Iterations")
+		self.itemIterations.setValue(self.__refocusingAlgorithm_Iterations)
+		self.itemIterations.setAttribute("minimum", 1)
+		self.itemIterations.setAttribute("maximum", 1000)
+		self.itemIterations.setAttribute("singleStep", 1)
+		self.itemIterations.setEnabled(False) # default
+		self.methodItem.addSubProperty(self.itemIterations)
+		self.addProperty(self.itemIterations, "RefocusingAlgorithm_Iterations")
+
+
+		self.paddingItem = self.variantManager.addProperty(\
+			QtVariantPropertyManager.groupTypeId(), "Padding / Scaling")
+
+		self.__refocusingAlgorithm_Upsampling = 1 # default
 		item = self.variantManager.addProperty(QVariant.Int, "Upsampling")
-		item.setValue(1)
+		item.setValue(self.__refocusingAlgorithm_Upsampling)
 		item.setAttribute("minimum", 1)
-		item.setAttribute("maximum", 1000)
+		item.setAttribute("maximum", 16)
 		item.setAttribute("singleStep", 1)
-		self.methodItem.addSubProperty(item)
+		self.paddingItem.addSubProperty(item)
+		self.addProperty(item, "RefocusingAlgorithm_Upsampling")
 
-		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Padding")
+		self.__refocusingAlgorithm_PaddingMethod = 'edge' # default
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
 		enumNames = QList()
-		enumNames.append("Zero")
-		enumNames.append("Edge")
-		enumNames.append("Symmetric")
+		# method : string, 'constant' | ‘edge’ | ‘linear_ramp’ | ‘maximum’
+		#    | ‘mean’ | ‘median’ | ‘minimum’ | ‘reflect’ | ‘symmetric’ | ‘wrap’
+		enumNames.append("edge")
+		enumNames.append("constant")
+		enumNames.append("reflect")
+		enumNames.append("symmetric")
+		enumNames.append("linear_ramp")
+		enumNames.append("maximum")
+		enumNames.append("mean")
+		enumNames.append("median")
+		enumNames.append("minimum")
+		enumNames.append("wrap")
 		item.setAttribute("enumNames", enumNames)
-		item.setValue(4)
-		self.methodItem.addSubProperty(item)
+		item.setValue(0)
+		self.paddingItem.addSubProperty(item)
+		self.addProperty(item, "RefocusingAlgorithm_PaddingMethod")
 
-		
-		item = self.variantManager.addProperty(QVariant.Int, "Padding width")
-		item.setValue(5)
+		self.__refocusingAlgorithm_PaddingWidth = 5 # default
+		item = self.variantManager.addProperty(QVariant.Int, "Width")
+		item.setValue(self.__refocusingAlgorithm_PaddingWidth)
 		item.setAttribute("minimum", 1)
 		item.setAttribute("maximum", 1000)
 		item.setAttribute("singleStep", 1)
-		self.methodItem.addSubProperty(item)
+		self.paddingItem.addSubProperty(item)
+		self.addProperty(item, "RefocusingAlgorithm_PaddingWidth")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Supersampling")
-		item.setValue(1)
-		item.setAttribute("minimum", 1)
-		item.setAttribute("maximum", 1000)
-		item.setAttribute("singleStep", 1)
-		self.methodItem.addSubProperty(item)
 
 		self.distancesItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Refocusing distances")
@@ -161,194 +188,24 @@ class VoxRefocusingPanel(QWidget):
 		item.setAttribute("minimum", 0.001)
 		item.setAttribute("maximum", 0.100)
 		self.distancesItem.addSubProperty(item)
-		self.addProperty(item, "RefocusingDistance_Step")
-
-		#item = variantManager.addProperty(QVariant.Bool, " Bool Property")
-		#item.setValue(True)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Int, " Int Property")
-		#item.setValue(20)
-		#item.setAttribute("minimum", 0)
-		#item.setAttribute("maximum", 100)
-		#item.setAttribute("singleStep", 10)
-		#topItem.addSubProperty(item)
-
-		#i = 0
-		#item = variantManager.addProperty(QVariant.Int, str(i) + " Int Property
-		#(ReadOnly)")
-		#i += 1
-		#item.setValue(20)
-		#item.setAttribute("minimum", 0)
-		#item.setAttribute("maximum", 100)
-		#item.setAttribute("singleStep", 10)
-		#item.setAttribute("readOnly", True)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Double, str(i) + " Double
-		#Property")
-		#i += 1
-		#item.setValue(1.2345)
-		#item.setAttribute("singleStep", 0.1)
-		#item.setAttribute("decimals", 3)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Double, str(i) + " Double
-		#Property (ReadOnly)")
-		#i += 1
-		#item.setValue(1.23456)
-		#item.setAttribute("singleStep", 0.1)
-		#item.setAttribute("decimals", 5)
-		#item.setAttribute("readOnly", True)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.String, str(i) + " String
-		#Property")
-		#i += 1
-		#item.setValue("Value")
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.String, str(i) + " String
-		#Property (Password)")
-		#i += 1
-		#item.setAttribute("echoMode", QLineEdit.Password)
-		#item.setValue("Password")
-		#topItem.addSubProperty(item)
-
-		## Readonly String Property
-		#item = variantManager.addProperty(QVariant.String, str(i) + " String
-		#Property (ReadOnly)")
-		#i += 1
-		#item.setAttribute("readOnly", True)
-		#item.setValue("readonly text")
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Date, str(i) + " Date Property")
-		#i += 1
-		#item.setValue(QDate.currentDate().addDays(2))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Time, str(i) + " Time Property")
-		#i += 1
-		#item.setValue(QTime.currentTime())
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.DateTime, str(i) + " DateTime
-		#Property")
-		#i += 1
-		#item.setValue(QDateTime.currentDateTime())
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.KeySequence, str(i) + "
-		#KeySequence Property")
-		#i += 1
-		#item.setValue(QKeySequence(Qt.ControlModifier | Qt.Key_Q))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Char, str(i) + " Char Property")
-		#i += 1
-		#item.setValue(chr(386))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Locale, str(i) + " Locale
-		#Property")
-		#i += 1
-		#item.setValue(QLocale(QLocale.Polish, QLocale.Poland))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Point, str(i) + " PoProperty")
-		#i += 1
-		#item.setValue(QPoint(10, 10))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.PointF, str(i) + " PointF
-		#Property")
-		#i += 1
-		#item.setValue(QPointF(1.2345, -1.23451))
-		#item.setAttribute("decimals", 3)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Size, str(i) + " Size Property")
-		#i += 1
-		#item.setValue(QSize(20, 20))
-		#item.setAttribute("minimum", QSize(10, 10))
-		#item.setAttribute("maximum", QSize(30, 30))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.SizeF, str(i) + " SizeF
-		#Property")
-		#i += 1
-		#item.setValue(QSizeF(1.2345, 1.2345))
-		#item.setAttribute("decimals", 3)
-		#item.setAttribute("minimum", QSizeF(0.12, 0.34))
-		#item.setAttribute("maximum", QSizeF(20.56, 20.78))
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Rect, str(i) + " Rect Property")
-		#i += 1
-		#item.setValue(QRect(10, 10, 20, 20))
-		#topItem.addSubProperty(item)
-		#item.setAttribute("constraint", QRect(0, 0, 50, 50))
-
-		#item = variantManager.addProperty(QVariant.RectF, str(i) + " RectF
-		#Property")
-		#i += 1
-		#item.setValue(QRectF(1.2345, 1.2345, 1.2345, 1.2345))
-		#topItem.addSubProperty(item)
-		#item.setAttribute("constraint", QRectF(0, 0, 50, 50))
-		#item.setAttribute("decimals", 3)
-
-		#item = variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),
-		#str(i) + " Enum Property")
-		#i += 1
-		#enumNames = QList()
-		#enumNames.append("Enum0")
-		#enumNames.append("Enum1")
-		#enumNames.append("Enum2")
-		#item.setAttribute("enumNames", enumNames)
-		#item.setValue(1)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QtVariantPropertyManager.flagTypeId(),
-		#str(i) + " Flag Property")
-		#i += 1
-		#flagNames = QList()
-		#flagNames.append("Flag0")
-		#flagNames.append("Flag1")
-		#flagNames.append("Flag2")
-		#item.setAttribute("flagNames", flagNames)
-		#item.setValue(5)
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.SizePolicy, str(i) + " SizePolicy
-		#Property")
-		#i += 1
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Font, str(i) + " Font Property")
-		#i += 1
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Cursor, str(i) + " Cursor
-		#Property")
-		#i += 1
-		#topItem.addSubProperty(item)
-
-		#item = variantManager.addProperty(QVariant.Color, str(i) + " Color
-		#Property")
-		#i += 1
-		#topItem.addSubProperty(item)
+		self.addProperty(item, "RefocusingDistance_Step")	
 
 		self.variantFactory = QtVariantEditorFactory()
 
+		# Comment/uncomment the following two lines for a different look &
+		# feel:
 		#self.variantEditor = QtGroupBoxPropertyBrowser()
 		self.variantEditor = QtTreePropertyBrowser()
+
 		self.variantEditor.setFactoryForManager(self.variantManager, self.variantFactory)
 		self.variantEditor.addProperty(self.methodItem)
 		self.variantEditor.addProperty(self.distancesItem)
-		self.variantEditor.setPropertiesWithoutValueMarked(True)
-		self.variantEditor.setRootIsDecorated(False)
-		self.variantEditor.setHeaderVisible(False)
+		self.variantEditor.addProperty(self.paddingItem)
+
+		if isinstance(self.variantEditor, QtTreePropertyBrowser):
+			self.variantEditor.setPropertiesWithoutValueMarked(True)
+			self.variantEditor.setRootIsDecorated(False)
+			self.variantEditor.setHeaderVisible(False)
 
 	
 		layout = QVBoxLayout()
@@ -374,6 +231,8 @@ class VoxRefocusingPanel(QWidget):
 		#	self.propertyEditor.setExpanded(item, self.idToExpanded[id])
 
 	def valueChanged(self, property, value):
+		""" Updates the property when a value is changed in the UI.
+		"""
 		if (not self.propertyToId.contains(property)):
 			return
 
@@ -384,13 +243,61 @@ class VoxRefocusingPanel(QWidget):
 		elif (id == "RefocusingDistance_Maximum"):
 			self.__refocusingDistance_Maximum = value
 		elif (id == "RefocusingDistance_Step"):
-			self.__refocusingDistance_Step = value		
+			self.__refocusingDistance_Step = value				
+
+		elif (id == "RefocusingAlgorithm_Upsampling"):
+			self.__refocusingAlgorithm_Upsampling = value
+		elif (id == "RefocusingAlgorithm_PaddingMethod"):
+			self.__refocusingAlgorithm_PaddingMethod = value
+		elif (id == "RefocusingAlgorithm_PaddingWidth"):
+			self.__refocusingAlgorithm_PaddingWidth = value
+
 		elif (id == "RefocusingAlgorithm_Method"):
 			self.__refocusingAlgorithm_Method = value
+
+            # Enable/disable iterations property:
+			if (value == 0) or (value == 1) or (value == 2): 
+				self.itemIterations.setEnabled(False)
+			else:
+				self.itemIterations.setEnabled(True)
+
+            # Enable/disable iterations property:
+			if (value == 0) or (value == 1): 
+				self.itemSupersampling.setEnabled(False)
+			else:
+			    self.itemSupersampling.setEnabled(True)
+
+		elif (id == "RefocusingAlgorithm_Iterations"):
+			self.__refocusingAlgorithm_Iterations = value
+		elif (id == "RefocusingAlgorithm_Supersampling"):
+			self.__refocusingAlgorithm_Supersampling = value
+
 
 	def getRefocusingAlgorithm_Method(self):
 
 		return self.__refocusingAlgorithm_Method
+
+	def getRefocusingAlgorithm_Iterations(self):
+
+		return self.__refocusingAlgorithm_Iterations
+
+	def getRefocusingAlgorithm_Supersampling(self):
+
+		return self.__refocusingAlgorithm_Supersampling
+
+
+	def getRefocusingAlgorithm_Upsampling(self):
+
+		return self.__refocusingAlgorithm_Upsampling
+
+	def getRefocusingAlgorithm_PaddingMethod(self):
+
+		return self.__refocusingAlgorithm_PaddingMethod
+
+	def getRefocusingAlgorithm_PaddingWidth(self):
+
+		return self.__refocusingAlgorithm_PaddingWidth
+
 
 	def getRefocusingDistance_Minimum(self):
 

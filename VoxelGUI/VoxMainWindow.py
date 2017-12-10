@@ -198,25 +198,45 @@ class VoxMainWindow(QMainWindow):
 			alpha_end = self.sidebar.refocusingTab.getRefocusingDistance_Maximum()
 			alpha_step = self.sidebar.refocusingTab.getRefocusingDistance_Step()
 			alphas = numpy.arange(alpha_start, alpha_end, alpha_step)
+						
+			# Get method parameters from UI:
+			method = self.sidebar.refocusingTab.getRefocusingAlgorithm_Method()
+			iterations = self.sidebar.refocusingTab.getRefocusingAlgorithm_Iterations()
+			supersampling = self.sidebar.refocusingTab.getRefocusingAlgorithm_Supersampling()
+
+			# Get padding paramters from UI:
+			padding = self.sidebar.refocusingTab.getRefocusingAlgorithm_PaddingMethod()
+			padding_width = self.sidebar.refocusingTab.getRefocusingAlgorithm_PaddingWidth()
+			upsampling = self.sidebar.refocusingTab.getRefocusingAlgorithm_Upsampling()
 
 			# Prepare for refocus:
 			z0 = lf.camera.get_focused_distance()
 			z0s = lf.camera.get_refocusing_distances(alphas)
 			refocusing_distances = lf.camera.get_refocusing_distances(alphas)
 
-			# Get method from UI:
-			method = self.sidebar.refocusingTab.getRefocusingAlgorithm_Method()
 
 			# Call vox core library to refocus the 4D light field data structure:
 			if method == 0: # 'integration':
-				imgs = vox.refocus.compute_refocus_integration(lf, alphas)
+				imgs = vox.refocus.compute_refocus_integration(lf, alphas, \
+					up_sampling=upsampling, border=padding_width, \
+                    border_padding=padding)
+			
 			elif method == 1: # 'Fourier':
-				imgs = vox.refocus.compute_refocus_fourier(lf, alphas)
+				imgs = vox.refocus.compute_refocus_fourier(lf, alphas, \
+					 up_sampling=upsampling, border=padding_width, \
+                     border_padding=padding)
+
 			elif method == 2: # 'backprojection':
-				imgs = vox.tomo.compute_refocus_backprojection(lf, z0s)
+				imgs = vox.tomo.compute_refocus_backprojection(lf, z0s, \
+                    up_sampling=upsampling, border=padding_width, \
+                    border_padding=padding, super_sampling=supersampling )
+
 			elif method == 3: # 'iterative':
-				#imgs = vox.tomo.compute_refocus_iterative(lf, z0s[numpy.r_[(0, 4)]])
-				imgs = vox.tomo.compute_refocus_iterative(lf, z0s)
+				imgs = vox.tomo.compute_refocus_iterative(lf, z0s, \
+                    up_sampling=upsampling, border=padding_width, \
+                    border_padding=padding, super_sampling=supersampling, \
+                    num_iters = iterations
+                    )
 
 			# Open a new tab in the image viewer with the output of refocusing:
 			self.mainPanel.addTab(imgs, sourceFile, sourceFile + " - " + \
