@@ -89,6 +89,7 @@
   <ItemGroup>
     <Content Include="QtProperty\qtpropertybrowser.qrc" />
     <Content Include="resources\btnDrag.png" />
+    <Content Include="resources\btnExport.png" />
     <Content Include="resources\btnFitToScreen.png" />
     <Content Include="resources\btnSelect.png" />
     <Content Include="resources\btnZoomIn.png" />

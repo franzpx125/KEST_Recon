@@ -202,7 +202,7 @@ class VoxMainWindow(QMainWindow):
 			# Get method parameters from UI:
 			method = self.sidebar.refocusingTab.getRefocusingAlgorithm_Method()
 			iterations = self.sidebar.refocusingTab.getRefocusingAlgorithm_Iterations()
-			supersampling = self.sidebar.refocusingTab.getRefocusingAlgorithm_Supersampling()
+			beamGeometry = self.sidebar.refocusingTab.getRefocusingAlgorithm_BeamGeometry()
 
 			# Get padding paramters from UI:
 			padding = self.sidebar.refocusingTab.getRefocusingAlgorithm_PaddingMethod()
@@ -219,24 +219,23 @@ class VoxMainWindow(QMainWindow):
 			if method == 0: # 'integration':
 				imgs = vox.refocus.compute_refocus_integration(lf, alphas, \
 					up_sampling=upsampling, border=padding_width, \
-                    border_padding=padding)
+                    border_padding=padding )
 			
 			elif method == 1: # 'Fourier':
 				imgs = vox.refocus.compute_refocus_fourier(lf, alphas, \
 					 up_sampling=upsampling, border=padding_width, \
-                     border_padding=padding)
+                     border_padding=padding )
 
 			elif method == 2: # 'backprojection':
 				imgs = vox.tomo.compute_refocus_backprojection(lf, z0s, \
                     up_sampling=upsampling, border=padding_width, \
-                    border_padding=padding, super_sampling=supersampling )
+                    border_padding=padding )#, super_sampling=supersampling )
 
 			elif method == 3: # 'iterative':
 				imgs = vox.tomo.compute_refocus_iterative(lf, z0s, \
                     up_sampling=upsampling, border=padding_width, \
-                    border_padding=padding, super_sampling=supersampling, \
-                    num_iters = iterations
-                    )
+                    border_padding=padding, num_iters = iterations )
+                    #, super_sampling=supersampling  )
 
 			# Open a new tab in the image viewer with the output of refocusing:
 			self.mainPanel.addTab(imgs, sourceFile, sourceFile + " - " + \

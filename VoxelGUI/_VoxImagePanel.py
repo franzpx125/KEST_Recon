@@ -3,6 +3,7 @@
 """
 
 import numpy as np
+import tifffile
 
 from PyQt5.QtCore import Qt, QRectF, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap, QPainterPath, QWheelEvent
@@ -169,6 +170,17 @@ class _VoxImagePanel(QGraphicsView):
 		self._updateImageLUT()    
 		self.updateViewer()   
 
+	def saveAsTIFF(self, filename):
+		""" Export the image currently displayed as TIFF image.
+		"""
+		im = self.npImage
+		
+		# Avoid 64-bit images:
+		if (self.npImage.dtype == np.float64):
+			im = self.npImage.astype(np.float32)
+
+		# Save as TIFF with tiffile library:
+		tifffile.imsave(filename, data=im)
 
 	def updateViewer(self):
 		""" Show current zoom (if showing entire image, apply current aspect ratio mode).

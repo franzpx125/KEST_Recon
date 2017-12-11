@@ -1,10 +1,11 @@
 import os.path
 
 from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy
-from PyQt5.QtWidgets import QToolButton, QSpacerItem, QLabel, QComboBox, QSlider
+from PyQt5.QtWidgets import QToolButton, QSpacerItem, QLabel, QComboBox, QSlider, QFileDialog
 from PyQt5.QtGui import QIcon, QFont, QBrush, QColor, QPalette
 from PyQt5.QtCore import Qt
 
+from VoxUtils import eprint
 from _VoxImagePanel import _VoxImagePanel
 
 import vox.lightfield
@@ -24,6 +25,9 @@ ZOOM_OUT_TOOLTIP = "Zoom Out (Mouse Wheel)"
 
 ZOOM_RESET_ICON = dir + "/resources/btnFitToScreen.png"
 ZOOM_RESET_TOOLTIP = "Zoom Fit (Mouse Double Click Left)"
+
+EXPORT_ICON = dir + "/resources/btnExport.png"
+EXPORT_TOOLTIP = "Save as TIFF"
 
 class VoxImageViewer(QWidget):
 
@@ -86,7 +90,7 @@ class VoxImageViewer(QWidget):
 		self.toolBar.addSeparator()
 
 		# Combo box for the 4 "views" of a light-field image:
-		self.lblLightField = QLabel(" Lightfield:  ")   # Use spaces		
+		self.lblLightField = QLabel(" Lightfield: ")   # Use spaces		
 		self.lblLightFieldAction = self.toolBar.addWidget(self.lblLightField)		
 
 		self.cbxLightField = QComboBox()
@@ -95,15 +99,25 @@ class VoxImageViewer(QWidget):
 		self.cbxLightFieldAction = self.toolBar.addWidget(self.cbxLightField)		
 
 		# Slider for the refocusing:
-		self.lblRefocusing = QLabel(" Refocusing:  ") # Use spaces
+		self.lblRefocusing = QLabel(" Refocusing: ") # Use spaces
 		self.lblRefocusingAction = self.toolBar.addWidget(self.lblRefocusing)		
 		
-		self.sldRefocusing = QSlider(Qt.Horizontal)        
+		self.sldRefocusing = QSlider(Qt.Horizontal) 
 		self.sldRefocusing.setFixedWidth(150)
 		self.sldRefocusing.setFocusPolicy(Qt.StrongFocus)
 		self.sldRefocusing.setTickPosition(QSlider.TicksBelow)
 		self.sldRefocusingAction = self.toolBar.addWidget(self.sldRefocusing)		
 		self.sldRefocusing.valueChanged.connect(self.changeRefocusedView)
+
+        # Separator:
+		self.fooWidget = QWidget()
+		self.fooWidget.setFixedWidth(6)
+		self.fooWidgetAction = self.toolBar.addWidget(self.fooWidget)
+
+		self.extraSeparatorAction = self.toolBar.addSeparator()
+
+		export = QAction(QIcon(EXPORT_ICON),EXPORT_TOOLTIP,self)        
+		self.toolBar.addAction(export)
 								
 		# Spacer:
 		spacer = QWidget()
@@ -161,6 +175,23 @@ class VoxImageViewer(QWidget):
 			self.imagePanel.performZoom(max(1.0,self.imagePanel.zoomFactor/1.15))
 		elif button.text() == ZOOM_RESET_TOOLTIP:
 			self.imagePanel.performZoom(1.0)
+		elif button.text() == EXPORT_TOOLTIP:
+
+			# Open a Save As dialog:
+			try:
+				options = QFileDialog.Options()
+				options |= QFileDialog.DontUseNativeDialog
+				filename, _ = QFileDialog.getSaveFileName(self,"Save as TIFF", 
+							  "","TIFF Files (*.tif);;All Files (*)", options=options)
+				if filename:
+				
+					# Call the method to save the current displayed image:
+					self.imagePanel.saveAsTIFF(filename)
+
+			except Exception as e:
+				eprint(str(e))
+
+			
 
 
 
@@ -189,16 +220,22 @@ class VoxImageViewer(QWidget):
 			self.cbxLightFieldAction.setVisible(False)
 			self.lblRefocusingAction.setVisible(False)
 			self.sldRefocusingAction.setVisible(False)
+			self.fooWidgetAction.setVisible(False)
+			self.extraSeparatorAction.setVisible(False)
 		elif (self.__imageType == 'lightfield'):
 			self.lblLightFieldAction.setVisible(True)
 			self.cbxLightFieldAction.setVisible(True)
 			self.lblRefocusingAction.setVisible(False)
 			self.sldRefocusingAction.setVisible(False)
+			self.fooWidgetAction.setVisible(True)
+			self.extraSeparatorAction.setVisible(True)
 		elif (self.__imageType == 'refocused'):
 			self.lblLightFieldAction.setVisible(False)
 			self.cbxLightFieldAction.setVisible(False)
 			self.lblRefocusingAction.setVisible(True)
 			self.sldRefocusingAction.setVisible(True)
+			self.fooWidgetAction.setVisible(True)
+			self.extraSeparatorAction.setVisible(True)
 
 			# Set dimension of the slider:
 			self.sldRefocusing.setMinimum(0)

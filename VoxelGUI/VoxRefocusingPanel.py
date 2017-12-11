@@ -93,14 +93,15 @@ class VoxRefocusingPanel(QWidget):
 		self.methodItem.addSubProperty(item)        
 		self.addProperty(item, "RefocusingAlgorithm_Method")
 
-		self.__refocusingAlgorithm_Supersampling = 1 # default (only for tomographic methods)
-		self.itemSupersampling = self.variantManager.addProperty(QVariant.Int, "Supersampling")
-		self.itemSupersampling.setValue(self.__refocusingAlgorithm_Supersampling)
-		self.itemSupersampling.setAttribute("minimum", 1)
-		self.itemSupersampling.setAttribute("maximum", 16)
-		self.itemSupersampling.setAttribute("singleStep", 1)
-		self.methodItem.addSubProperty(self.itemSupersampling)
-		self.addProperty(self.itemSupersampling, "RefocusingAlgorithm_Supersampling")
+		self.__refocusingAlgorithm_BeamGeometry = 0 # default (for all the methods)
+		self.itemBeamGeometry = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(), "Beam Geometry")
+		self.itemBeamGeometry.setValue(self.__refocusingAlgorithm_BeamGeometry)
+		enumNames = QList()
+		enumNames.append("parallel")
+		enumNames.append("cone")
+		self.itemBeamGeometry.setAttribute("enumNames", enumNames)		
+		self.methodItem.addSubProperty(self.itemBeamGeometry)
+		self.addProperty(self.itemBeamGeometry, "RefocusingAlgorithm_BeamGeometry")
 
 		self.__refocusingAlgorithm_Iterations = 10 # default for SIRT
 		self.itemIterations = self.variantManager.addProperty(QVariant.Int, "Iterations")
@@ -261,16 +262,11 @@ class VoxRefocusingPanel(QWidget):
 			else:
 				self.itemIterations.setEnabled(True)
 
-            # Enable/disable iterations property:
-			if (value == 0) or (value == 1): 
-				self.itemSupersampling.setEnabled(False)
-			else:
-			    self.itemSupersampling.setEnabled(True)
-
 		elif (id == "RefocusingAlgorithm_Iterations"):
 			self.__refocusingAlgorithm_Iterations = value
-		elif (id == "RefocusingAlgorithm_Supersampling"):
-			self.__refocusingAlgorithm_Supersampling = value
+
+		elif (id == "RefocusingAlgorithm_BeamGeometry"):
+			self.__refocusingAlgorithm_BeamGeometry = value
 
 
 	def getRefocusingAlgorithm_Method(self):
@@ -281,9 +277,9 @@ class VoxRefocusingPanel(QWidget):
 
 		return self.__refocusingAlgorithm_Iterations
 
-	def getRefocusingAlgorithm_Supersampling(self):
+	def getRefocusingAlgorithm_BeamGeometry(self):
 
-		return self.__refocusingAlgorithm_Supersampling
+		return self.__refocusingAlgorithm_BeamGeometry
 
 
 	def getRefocusingAlgorithm_Upsampling(self):
