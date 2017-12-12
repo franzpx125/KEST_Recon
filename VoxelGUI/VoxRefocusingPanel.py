@@ -51,7 +51,7 @@ class VoxRefocusingPanel(QWidget):
 
 		QWidget.__init__(self)		
 
-		# Property manager:
+		# Property manager and related events:
 		self.variantManager = QtVariantPropertyManager()
 		self.propertyToId = QMap()
 		self.idToProperty = QMap()
@@ -81,7 +81,7 @@ class VoxRefocusingPanel(QWidget):
 		self.methodItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Method")
 	
-		self.__refocusingAlgorithm_Method = 2 # "integration"
+
 		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
 		enumNames = QList()
 		enumNames.append(VoxRefocusingPanel.available_methods[0])
@@ -89,66 +89,63 @@ class VoxRefocusingPanel(QWidget):
 		enumNames.append(VoxRefocusingPanel.available_methods[2])
 		enumNames.append(VoxRefocusingPanel.available_methods[3])
 		item.setAttribute("enumNames", enumNames)
-		item.setValue(self.__refocusingAlgorithm_Method)
+		item.setValue(2) # default: "backprojection"
 		self.methodItem.addSubProperty(item)        
 		self.addProperty(item, "RefocusingAlgorithm_Method")
 
-		self.__refocusingAlgorithm_BeamGeometry = 0 # default (for all the methods)
-		self.itemBeamGeometry = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(), "Beam Geometry")
-		self.itemBeamGeometry.setValue(self.__refocusingAlgorithm_BeamGeometry)
-		enumNames = QList()
-		enumNames.append("parallel")
-		enumNames.append("cone")
-		self.itemBeamGeometry.setAttribute("enumNames", enumNames)		
-		self.methodItem.addSubProperty(self.itemBeamGeometry)
-		self.addProperty(self.itemBeamGeometry, "RefocusingAlgorithm_BeamGeometry")
 
-		self.__refocusingAlgorithm_Iterations = 10 # default for SIRT
-		self.itemIterations = self.variantManager.addProperty(QVariant.Int, "Iterations")
-		self.itemIterations.setValue(self.__refocusingAlgorithm_Iterations)
-		self.itemIterations.setAttribute("minimum", 1)
-		self.itemIterations.setAttribute("maximum", 1000)
-		self.itemIterations.setAttribute("singleStep", 1)
-		self.itemIterations.setEnabled(False) # default
-		self.methodItem.addSubProperty(self.itemIterations)
-		self.addProperty(self.itemIterations, "RefocusingAlgorithm_Iterations")
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(), "Beam Geometry")
+		item.setValue(0) # default (for all the methods)
+		self.geometryTypes = QList()
+		self.geometryTypes.append("parallel")
+		self.geometryTypes.append("cone")
+		item.setAttribute("enumNames", self.geometryTypes)		
+		self.methodItem.addSubProperty(item)
+		self.addProperty(item, "RefocusingAlgorithm_BeamGeometry")
+
+
+		item = self.variantManager.addProperty(QVariant.Int, "Iterations")
+		item.setValue(10) # default for SIRT
+		item.setAttribute("minimum", 1)
+		item.setAttribute("maximum", 1000)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(False) # default
+		self.methodItem.addSubProperty(item)
+		self.addProperty(item, "RefocusingAlgorithm_Iterations")
 
 
 		self.paddingItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Padding / Scaling")
 
-		self.__refocusingAlgorithm_Upsampling = 1 # default
 		item = self.variantManager.addProperty(QVariant.Int, "Upsampling")
-		item.setValue(self.__refocusingAlgorithm_Upsampling)
+		item.setValue(1) # default
 		item.setAttribute("minimum", 1)
 		item.setAttribute("maximum", 16)
 		item.setAttribute("singleStep", 1)
 		self.paddingItem.addSubProperty(item)
 		self.addProperty(item, "RefocusingAlgorithm_Upsampling")
 
-		self.__refocusingAlgorithm_PaddingMethod = 'edge' # default
 		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
-		enumNames = QList()
+		self.paddingTypes = QList()
 		# method : string, 'constant' | ‘edge’ | ‘linear_ramp’ | ‘maximum’
 		#    | ‘mean’ | ‘median’ | ‘minimum’ | ‘reflect’ | ‘symmetric’ | ‘wrap’
-		enumNames.append("edge")
-		enumNames.append("constant")
-		enumNames.append("reflect")
-		enumNames.append("symmetric")
-		enumNames.append("linear_ramp")
-		enumNames.append("maximum")
-		enumNames.append("mean")
-		enumNames.append("median")
-		enumNames.append("minimum")
-		enumNames.append("wrap")
-		item.setAttribute("enumNames", enumNames)
-		item.setValue(0)
+		self.paddingTypes.append("edge")
+		self.paddingTypes.append("constant")
+		self.paddingTypes.append("reflect")
+		self.paddingTypes.append("symmetric")
+		self.paddingTypes.append("linear_ramp")
+		self.paddingTypes.append("maximum")
+		self.paddingTypes.append("mean")
+		self.paddingTypes.append("median")
+		self.paddingTypes.append("minimum")
+		self.paddingTypes.append("wrap")
+		item.setAttribute("enumNames", self.paddingTypes)
+		item.setValue(0) # default: "edge"
 		self.paddingItem.addSubProperty(item)
 		self.addProperty(item, "RefocusingAlgorithm_PaddingMethod")
 
-		self.__refocusingAlgorithm_PaddingWidth = 5 # default
 		item = self.variantManager.addProperty(QVariant.Int, "Width")
-		item.setValue(self.__refocusingAlgorithm_PaddingWidth)
+		item.setValue(5) # default
 		item.setAttribute("minimum", 1)
 		item.setAttribute("maximum", 1000)
 		item.setAttribute("singleStep", 1)
@@ -159,9 +156,8 @@ class VoxRefocusingPanel(QWidget):
 		self.distancesItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Refocusing distances")
 	
-		self.__refocusingDistance_Minimum = 0.9 # default
 		item = self.variantManager.addProperty(QVariant.Double, "Minimum")
-		item.setValue(self.__refocusingDistance_Minimum)
+		item.setValue(0.9) # default
 		item.setAttribute("singleStep", 0.1)
 		item.setAttribute("decimals", 3)
 		item.setAttribute("minimum", 0.1)
@@ -170,9 +166,8 @@ class VoxRefocusingPanel(QWidget):
 		self.addProperty(item, "RefocusingDistance_Minimum")
 		
 
-		self.__refocusingDistance_Maximum = 1.1 # default
 		item = self.variantManager.addProperty(QVariant.Double, "Maximum")
-		item.setValue(self.__refocusingDistance_Maximum)
+		item.setValue(1.1) # default
 		item.setAttribute("singleStep", 0.1)
 		item.setAttribute("decimals", 3)
 		item.setAttribute("minimum", 0.1)
@@ -181,9 +176,8 @@ class VoxRefocusingPanel(QWidget):
 		self.addProperty(item, "RefocusingDistance_Maximum")
 
 		
-		self.__refocusingDistance_Step = 0.005 # default
 		item = self.variantManager.addProperty(QVariant.Double, "Step")
-		item.setValue(self.__refocusingDistance_Step)
+		item.setValue(0.005) # default
 		item.setAttribute("singleStep", 0.010)
 		item.setAttribute("decimals", 3)
 		item.setAttribute("minimum", 0.001)
@@ -193,8 +187,7 @@ class VoxRefocusingPanel(QWidget):
 
 		self.variantFactory = QtVariantEditorFactory()
 
-		# Comment/uncomment the following two lines for a different look &
-		# feel:
+		# Un/comment the following two lines for a different look & feel
 		#self.variantEditor = QtGroupBoxPropertyBrowser()
 		self.variantEditor = QtTreePropertyBrowser()
 
@@ -215,94 +208,74 @@ class VoxRefocusingPanel(QWidget):
 		layout.addWidget(spacer)    
 		layout.setContentsMargins(0,0,0,0)	
 		self.setLayout(layout)
-
-	def handleButton(self):
-		"""
-		"""
-
-		# Emit the event:
-		self.refocusingRequestedEvent.emit()
+	
 
 	def addProperty(self, property, id):
+		""" Add the specified property to the internal table of properties.
+		"""
 		self.propertyToId[property] = id
-		self.idToProperty[id] = property
+		self.idToProperty[id] = property 
 
-		#item = self.propertyEditor.addProperty(property)
-		#if (self.idToExpanded.contains(id)):
-		#	self.propertyEditor.setExpanded(item, self.idToExpanded[id])
 
 	def valueChanged(self, property, value):
 		""" Updates the property when a value is changed in the UI.
 		"""
 		if (not self.propertyToId.contains(property)):
 			return
-
+		
+        # Get the related property:
 		id = self.propertyToId[property]
 
-		if (id == "RefocusingDistance_Minimum"):
-			self.__refocusingDistance_Minimum = value
-		elif (id == "RefocusingDistance_Maximum"):
-			self.__refocusingDistance_Maximum = value
-		elif (id == "RefocusingDistance_Step"):
-			self.__refocusingDistance_Step = value				
+        # Enable/disable iterations property:
+		if (id == "RefocusingAlgorithm_Method"):
 
-		elif (id == "RefocusingAlgorithm_Upsampling"):
-			self.__refocusingAlgorithm_Upsampling = value
-		elif (id == "RefocusingAlgorithm_PaddingMethod"):
-			self.__refocusingAlgorithm_PaddingMethod = value
-		elif (id == "RefocusingAlgorithm_PaddingWidth"):
-			self.__refocusingAlgorithm_PaddingWidth = value
+			# Get the iterations property:
+			p = self.idToProperty["RefocusingAlgorithm_Iterations"] 
 
-		elif (id == "RefocusingAlgorithm_Method"):
-			self.__refocusingAlgorithm_Method = value
-
-            # Enable/disable iterations property:
+            # Enable or disable it:
 			if (value == 0) or (value == 1) or (value == 2): 
-				self.itemIterations.setEnabled(False)
+				p.setEnabled(False)
 			else:
-				self.itemIterations.setEnabled(True)
-
-		elif (id == "RefocusingAlgorithm_Iterations"):
-			self.__refocusingAlgorithm_Iterations = value
-
-		elif (id == "RefocusingAlgorithm_BeamGeometry"):
-			self.__refocusingAlgorithm_BeamGeometry = value
+				p.setEnabled(True)
 
 
-	def getRefocusingAlgorithm_Method(self):
 
-		return self.__refocusingAlgorithm_Method
+	def getValue(self, id):
+		""" Get the value of the specified property.
+		"""
+		if (not self.idToProperty.contains(id)):
+			return
 
-	def getRefocusingAlgorithm_Iterations(self):
+        # Get the related property:
+		p = self.idToProperty[id]
+		val = self.variantManager.value(p)
 
-		return self.__refocusingAlgorithm_Iterations
+		# Return a string for the combo boxes:
+		if (id == "RefocusingAlgorithm_Method"):				
+			return VoxRefocusingPanel.available_methods[val]
+			
+		elif (id == "RefocusingAlgorithm_PaddingMethod"):				
+			return self.paddingTypes[val]
+			
+		elif (id == "RefocusingAlgorithm_BeamGeometry"):			
+			return self.geometryTypes[val]
 
-	def getRefocusingAlgorithm_BeamGeometry(self):
-
-		return self.__refocusingAlgorithm_BeamGeometry
-
-
-	def getRefocusingAlgorithm_Upsampling(self):
-
-		return self.__refocusingAlgorithm_Upsampling
-
-	def getRefocusingAlgorithm_PaddingMethod(self):
-
-		return self.__refocusingAlgorithm_PaddingMethod
-
-	def getRefocusingAlgorithm_PaddingWidth(self):
-
-		return self.__refocusingAlgorithm_PaddingWidth
+		# All the other cases:
+		return val
 
 
-	def getRefocusingDistance_Minimum(self):
+	def setValue(self, id, val):
+		""" Set the specified property with the specified value.
+		"""
+		if (self.idToProperty.contains(id)):
 
-		return self.__refocusingDistance_Minimum
+			p = self.idToProperty[id]
+			self.variantManager.setValue(p, val)
 
-	def getRefocusingDistance_Maximum(self):
 
-		return self.__refocusingDistance_Maximum
+	def handleButton(self):
+		""" Raise an event when user wants to perform the refocusing.
+		"""
 
-	def getRefocusingDistance_Step(self):
-
-		return self.__refocusingDistance_Step
+		# Emit the event:
+		self.refocusingRequestedEvent.emit()

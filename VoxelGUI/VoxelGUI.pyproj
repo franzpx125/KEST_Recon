@@ -85,6 +85,7 @@
     <Folder Include="QtProperty\" />
     <Folder Include="resources\" />
     <Folder Include="vox\" />
+    <Folder Include="vox_files\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="QtProperty\qtpropertybrowser.qrc" />
@@ -103,6 +104,12 @@
     <Content Include="resources\logo_voxel.png" />
     <Content Include="resources\text.png" />
     <Content Include="resources\warning.png" />
+    <Content Include="vox_files\card.vox" />
+    <Content Include="vox_files\imagerender.vox" />
+    <Content Include="vox_files\rule2.vox" />
+    <Content Include="vox_files\stingray_pleno1_M1.vox" />
+    <Content Include="vox_files\wine2.vox" />
+    <Content Include="vox_files\wine6.vox" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

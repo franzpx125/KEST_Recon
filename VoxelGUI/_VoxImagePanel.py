@@ -171,7 +171,7 @@ class _VoxImagePanel(QGraphicsView):
 		self.updateViewer()   
 
 	def saveAsTIFF(self, filename):
-		""" Export the image currently displayed as TIFF image.
+		""" Export the image currently displayed as TIFF file.
 		"""
 		im = self.npImage
 		

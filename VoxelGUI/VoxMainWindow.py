@@ -48,6 +48,7 @@ class VoxMainWindow(QMainWindow):
 		# Configure the sidebar:
 		self.sidebar.hdfViewerTab.openImageDataEvent.connect(self.openImage)
 		self.sidebar.preprocessingTab.preprocessingRequestedEvent.connect(self.applyPreprocessing)
+		self.sidebar.preprocessingTab.calibrateRequestedEvent.connect(self.applyAutoCalibration)
 		self.sidebar.refocusingTab.refocusingRequestedEvent.connect(self.applyRefocusing)
 
 
@@ -136,9 +137,56 @@ class VoxMainWindow(QMainWindow):
 		im = im.T
 
 		# Open a new tab in the image viewer:
-		self.mainPanel.addTab(im, str(os.path.basename(filename)),  \
+		self.mainPanel.addTab(im, filename,  \
 			str(os.path.basename(filename)) + " - " + RAW_TABLABEL \
 			+ " " + str(os.path.basename(key)), 'raw')
+
+
+	def applyAutoCalibration(self):
+		""" Called when user wants to apply the auto-calibration on current image.
+			NOTE: the current image should be a 'raw' image. The UI should avoid
+				  to let this method callable when current image is not a 'raw'.
+		"""
+		try:
+			# Set mouse wait cursor:
+			QApplication.setOverrideCursor(Qt.WaitCursor)
+
+			# Get current image:
+			curr_tab = self.mainPanel.tabImageViewers.currentWidget()
+			sourceFile = curr_tab.getSourceFile()
+						
+			# Call vox core library to create the 4D light field data structure:
+			#
+			
+			# Fake calibration: #####################################
+			with h5py.File(sourceFile, 'r') as f:
+				# Convert from HDF5 datasets to numpy arrays:
+				key = '/instrument/camera/micro_lenses_array/array_offsets'
+				array_offsets = numpy.empty((f[key].shape[0], f[key].shape[1]), dtype=f[key].dtype)
+				f[key].read_direct(array_offsets, numpy.s_[:, :])
+
+				# Convert from HDF5 datasets to numpy arrays:
+				key = '/instrument/camera/micro_lenses_array/lenslet_effective_size'
+				lenslet_effective_size = numpy.empty((f[key].shape[0], f[key].shape[1]), dtype=f[key].dtype)
+				f[key].read_direct(lenslet_effective_size, numpy.s_[:, :])
+
+
+			# Fill the UI properties with the values:			
+			self.sidebar.preprocessingTab.setValue("InputLenslet_Width", float(lenslet_effective_size[1][0]))
+			self.sidebar.preprocessingTab.setValue("InputLenslet_Height", float(lenslet_effective_size[0][0]))
+			self.sidebar.preprocessingTab.setValue("InputLenslet_OffsetLeft", float(array_offsets[1][0]))
+			self.sidebar.preprocessingTab.setValue("InputLenslet_OffsetTop", float(array_offsets[0][0]))
+
+			self.sidebar.preprocessingTab.setValue("OutputLenslet_Width", int(round(lenslet_effective_size[1][0])))
+			self.sidebar.preprocessingTab.setValue("OutputLenslet_Height", int(round(lenslet_effective_size[0][0])))
+
+		except Exception as e:
+				
+			eprint("Error while performing auto-calibration: " + str(e))   
+
+		finally:
+			# Restore mouse cursor:
+			QApplication.restoreOverrideCursor()
 
 
 
@@ -156,17 +204,22 @@ class VoxMainWindow(QMainWindow):
 			in_im = curr_tab.getData()
 			sourceFile = curr_tab.getSourceFile()
 
-			# Get params from UI: ##############################################
-			acq_params = { 'lenslet_effective_size': numpy.array([15.565, 15.565]),
-					   'array_offsets': numpy.array([10.5, 2.75]) }  
+			# Get params from UI: 
+			lenslet_width = self.sidebar.preprocessingTab.getValue("InputLenslet_Width")
+			lenslet_height = self.sidebar.preprocessingTab.getValue("InputLenslet_Height")
+			lenslet_offsetTop = self.sidebar.preprocessingTab.getValue("InputLenslet_OffsetTop")
+			lenslet_offsetLeft = self.sidebar.preprocessingTab.getValue("InputLenslet_OffsetLeft")
+
+			acq_params = { 'lenslet_effective_size': numpy.array([lenslet_width, lenslet_height]),
+					   'array_offsets': numpy.array([lenslet_offsetTop, lenslet_offsetLeft]) }  
 
 			# Call vox core library to create the 4D light field data structure:
 			camera = vox.lightfield.get_camera('imagineoptic_haso3')
 			lf = vox.dist_tools_io.import_lightfield_from_2D_image(in_im, camera=camera, \
-				acq_params=acq_params, data_type=numpy.float32)		
+				acq_params=acq_params, data_type=numpy.float32)	
 
 			# Open a new tab in the image viewer with the output of preprocessing:
-			self.mainPanel.addTab(lf, sourceFile, sourceFile + " - " + \
+			self.mainPanel.addTab(lf, sourceFile, str(os.path.basename(sourceFile)) + " - " + \
 				PREPROC_TABLABEL, 'lightfield')
 
 		except Exception as e:
@@ -194,20 +247,20 @@ class VoxMainWindow(QMainWindow):
 			sourceFile = curr_tab.getSourceFile()
 
 			# Get alphas from UI:
-			alpha_start = self.sidebar.refocusingTab.getRefocusingDistance_Minimum()
-			alpha_end = self.sidebar.refocusingTab.getRefocusingDistance_Maximum()
-			alpha_step = self.sidebar.refocusingTab.getRefocusingDistance_Step()
+			alpha_start = self.sidebar.refocusingTab.getValue("RefocusingDistance_Minimum")
+			alpha_end = self.sidebar.refocusingTab.getValue("RefocusingDistance_Maximum")
+			alpha_step = self.sidebar.refocusingTab.getValue("RefocusingDistance_Step")
 			alphas = numpy.arange(alpha_start, alpha_end, alpha_step)
 						
 			# Get method parameters from UI:
-			method = self.sidebar.refocusingTab.getRefocusingAlgorithm_Method()
-			iterations = self.sidebar.refocusingTab.getRefocusingAlgorithm_Iterations()
-			beamGeometry = self.sidebar.refocusingTab.getRefocusingAlgorithm_BeamGeometry()
+			method = self.sidebar.refocusingTab.getValue("RefocusingAlgorithm_Method")
+			iterations = self.sidebar.refocusingTab.getValue("RefocusingAlgorithm_Iterations")
+			beamGeometry = self.sidebar.refocusingTab.getValue("RefocusingAlgorithm_BeamGeometry")
 
 			# Get padding paramters from UI:
-			padding = self.sidebar.refocusingTab.getRefocusingAlgorithm_PaddingMethod()
-			padding_width = self.sidebar.refocusingTab.getRefocusingAlgorithm_PaddingWidth()
-			upsampling = self.sidebar.refocusingTab.getRefocusingAlgorithm_Upsampling()
+			padding = self.sidebar.refocusingTab.getValue("RefocusingAlgorithm_PaddingMethod")
+			padding_width = self.sidebar.refocusingTab.getValue("RefocusingAlgorithm_PaddingWidth")
+			upsampling = self.sidebar.refocusingTab.getValue("RefocusingAlgorithm_Upsampling")
 
 			# Prepare for refocus:
 			z0 = lf.camera.get_focused_distance()
@@ -216,34 +269,36 @@ class VoxMainWindow(QMainWindow):
 
 
 			# Call vox core library to refocus the 4D light field data structure:
-			if method == 0: # 'integration':
+			if method == 'integration':
 				imgs = vox.refocus.compute_refocus_integration(lf, alphas, \
 					up_sampling=upsampling, border=padding_width, \
-                    border_padding=padding )
+                    border_padding=padding, beam_geometry=beamGeometry )
 			
-			elif method == 1: # 'Fourier':
+			elif method == 'Fourier':
 				imgs = vox.refocus.compute_refocus_fourier(lf, alphas, \
 					 up_sampling=upsampling, border=padding_width, \
-                     border_padding=padding )
+                     border_padding=padding, beam_geometry=beamGeometry )
 
-			elif method == 2: # 'backprojection':
+			elif method == 'backprojection':
 				imgs = vox.tomo.compute_refocus_backprojection(lf, z0s, \
                     up_sampling=upsampling, border=padding_width, \
-                    border_padding=padding )#, super_sampling=supersampling )
+                    border_padding=padding, beam_geometry=beamGeometry )
+                    #, super_sampling=supersampling )
 
-			elif method == 3: # 'iterative':
+			elif method == 'iterative':
 				imgs = vox.tomo.compute_refocus_iterative(lf, z0s, \
                     up_sampling=upsampling, border=padding_width, \
-                    border_padding=padding, num_iters = iterations )
+                    border_padding=padding, num_iters = iterations, \
+                    beam_geometry=beamGeometry )
                     #, super_sampling=supersampling  )
 
 			# Open a new tab in the image viewer with the output of refocusing:
-			self.mainPanel.addTab(imgs, sourceFile, sourceFile + " - " + \
+			self.mainPanel.addTab(imgs, sourceFile, str(os.path.basename(sourceFile)) + " - " + \
 				REFOCUS_TABLABEL, 'refocused')
 
 		except Exception as e:
 				
-			eprint("Error while pre-processing: " + str(e))   
+			eprint("Error while refocusing: " + str(e))   
 
 		finally:
 			# Restore mouse cursor:
