@@ -75,8 +75,8 @@ if __name__ == '__main__':
 	mainWindow = VoxMainWindow()
 
 	# Redirect print() and errors:
-	sys.stdout = Redirect(mainWindow.mainPanel.log.outputLog)
-	sys.stderr = Redirect(mainWindow.mainPanel.log.errorLog)
+	#sys.stdout = Redirect(mainWindow.mainPanel.log.outputLog)
+	#sys.stderr = Redirect(mainWindow.mainPanel.log.errorLog)
 
 	# Run application:
 	mainWindow.show()
