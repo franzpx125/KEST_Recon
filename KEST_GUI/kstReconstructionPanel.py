@@ -41,9 +41,6 @@ from QtProperty.qteditorfactory import (
 
 class kstReconstructionPanel(QWidget):
 
-    # Available flat-fielding algorithms:
-	flatfielding_methods = ('conventional', 'dynamic')
-
 	# Available reconstruction algorithms:
 	reconstruction_methods = ('FDK', 'SIRT', 'CGLS')
 
@@ -83,18 +80,6 @@ class kstReconstructionPanel(QWidget):
 		spacerSizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)   
 		spacer.setSizePolicy(spacerSizePolicy)
 
-		self.flatFieldingItem = self.variantManager.addProperty(\
-			QtVariantPropertyManager.groupTypeId(), "Flat fielding")
-	
-
-		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
-		enumNames = QList()
-		for method in kstReconstructionPanel.flatfielding_methods:  
-			enumNames.append(method)
-		item.setAttribute("enumNames", enumNames)
-		item.setValue(0) # default: "conventional"
-		self.flatFieldingItem.addSubProperty(item)        
-		self.addProperty(item, "FlatFielding_Method")
 	
 		# Configuration:
 		self.methodItem = self.variantManager.addProperty(\
@@ -154,45 +139,19 @@ class kstReconstructionPanel(QWidget):
 
 
 		self.paddingItem = self.variantManager.addProperty(\
-			QtVariantPropertyManager.groupTypeId(), "Padding / Scaling")
+			QtVariantPropertyManager.groupTypeId(), "Padding / Upsampling")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Upsampling")
-		item.setValue(1) # default
-		item.setAttribute("minimum", 1)
-		item.setAttribute("maximum", 16)
-		item.setAttribute("singleStep", 1)
+		item = self.variantManager.addProperty(QVariant.Bool, "Upsampling 2x2")
+		item.setValue(False) 
 		self.paddingItem.addSubProperty(item)
 		self.addProperty(item, "ReconstructionAlgorithm_Upsampling")
 
-		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
-		self.paddingTypes = QList()
-		# method : string, 'constant' | ‘edge’ | ‘linear_ramp’ | ‘maximum’
-		#    | ‘mean’ | ‘median’ | ‘minimum’ | ‘reflect’ | ‘symmetric’ | ‘wrap’
-		self.paddingTypes.append("none")
-		self.paddingTypes.append("edge")
-		self.paddingTypes.append("constant")
-		self.paddingTypes.append("reflect")
-		self.paddingTypes.append("symmetric")
-		self.paddingTypes.append("linear_ramp")
-		self.paddingTypes.append("maximum")
-		self.paddingTypes.append("mean")
-		self.paddingTypes.append("median")
-		self.paddingTypes.append("minimum")
-		self.paddingTypes.append("wrap")
-		item.setAttribute("enumNames", self.paddingTypes)
-		item.setValue(0) # default: "edge"
+		item = self.variantManager.addProperty(QVariant.Bool, "Overpadding")
+		item.setValue(False) 
 		self.paddingItem.addSubProperty(item)
-		self.addProperty(item, "ReconstructionAlgorithm_PaddingMethod")
+		self.addProperty(item, "ReconstructionAlgorithm_Overpadding")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Width")
-		item.setValue(5) # default
-		item.setAttribute("minimum", 1)
-		item.setAttribute("maximum", 1000)
-		item.setAttribute("singleStep", 1)
-		self.paddingItem.addSubProperty(item)
-		self.addProperty(item, "ReconstructionAlgorithm_PaddingWidth")
-
-
+	
 		self.geometryItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Geometry")
 	
@@ -255,12 +214,11 @@ class kstReconstructionPanel(QWidget):
 		self.variantEditor = QtTreePropertyBrowser()
 
 		self.variantEditor.setFactoryForManager(self.variantManager, self.variantFactory)
-		self.variantEditor.addProperty(self.flatFieldingItem)
 		self.variantEditor.addProperty(self.methodItem)		
 		self.variantEditor.addProperty(self.anglesItem)
 		self.variantEditor.addProperty(self.geometryItem)
 		self.variantEditor.addProperty(self.offsetItem)
-		#self.variantEditor.addProperty(self.paddingItem)
+		self.variantEditor.addProperty(self.paddingItem)
 
 		if isinstance(self.variantEditor, QtTreePropertyBrowser):
 			self.variantEditor.setPropertiesWithoutValueMarked(True)

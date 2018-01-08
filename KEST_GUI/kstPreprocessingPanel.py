@@ -26,6 +26,9 @@ from QtProperty.qtgroupboxpropertybrowser import QtGroupBoxPropertyBrowser
 
 class kstPreprocessingPanel(QWidget):
 
+    # Available flat-fielding algorithms:
+	flatfielding_methods = ('conventional', 'dynamic')
+
     # Event raised when the user wants to perform the pre-processing:
 	preprocessingRequestedEvent = pyqtSignal()
 
@@ -57,15 +60,15 @@ class kstPreprocessingPanel(QWidget):
 		btnWidgetSpacer.setSizePolicy(spacerSizePolicy)
 
         # Calibrate button (left aligned):
-		self.btnCalibrate = QPushButton('Calibrate', self)
-		self.btnCalibrate.clicked.connect(self.handleCalibrate)
+		self.btnPreview = QPushButton('Preview', self)
+		self.btnPreview.clicked.connect(self.handleCalibrate)
 
         # Apply button (right aligned):
 		self.btnApply = QPushButton('Apply', self)
 		self.btnApply.clicked.connect(self.handleApply)
 
         # Compose the layout with the buttons and the spacer:
-		btnWidgetLayout.addWidget(self.btnCalibrate)
+		btnWidgetLayout.addWidget(self.btnPreview)
 		btnWidgetLayout.addWidget(btnWidgetSpacer)  
 		btnWidgetLayout.addWidget(self.btnApply)    
 		btnWidgetLayout.setContentsMargins(0,0,0,0)	
@@ -75,64 +78,62 @@ class kstPreprocessingPanel(QWidget):
 		spacer = QWidget()
 		spacerSizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)   
 		spacer.setSizePolicy(spacerSizePolicy)
+
+
 	
         # Configuration of the properties manager:
-		self.inputLensletItem = self.variantManager.addProperty(\
-            QtVariantPropertyManager.groupTypeId(), "Input lenslet")
+		self.defectCorrectionItem = self.variantManager.addProperty(\
+            QtVariantPropertyManager.groupTypeId(), "Defect correction")
 	
-		item = self.variantManager.addProperty(QVariant.Double, "Width")
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		item.setValue(-1) # default
-		self.inputLensletItem.addSubProperty(item)        
-		self.addProperty(item, "InputLenslet_Width")
-
-		item = self.variantManager.addProperty(QVariant.Double, "Height")
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		item.setValue(-1) # default
-		self.inputLensletItem.addSubProperty(item)        
-		self.addProperty(item, "InputLenslet_Height")
-
-		item = self.variantManager.addProperty(QVariant.Double, "Offset Top")
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		item.setValue(-1) # default
-		self.inputLensletItem.addSubProperty(item)        
-		self.addProperty(item, "InputLenslet_OffsetTop")
-
-		item = self.variantManager.addProperty(QVariant.Double, "Offset Left")
-		item.setAttribute("singleStep", 0.1)
-		item.setAttribute("decimals", 3)
-		item.setValue(-1) # default
-		self.inputLensletItem.addSubProperty(item)        
-		self.addProperty(item, "InputLenslet_OffsetLeft")
-
-		self.outputLensletItem = self.variantManager.addProperty(\
-			QtVariantPropertyManager.groupTypeId(), "Output lenslet")
-	
-		item = self.variantManager.addProperty(QVariant.Int, "Width")
+		item = self.variantManager.addProperty(QVariant.Int, "Dark threshold")
+		item.setValue(0) # default for dead pixels
 		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 1024)
+		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
-		item.setValue(0)
-		self.outputLensletItem.addSubProperty(item)        
-		self.addProperty(item, "OutputLenslet_Width")
+		self.defectCorrectionItem.addSubProperty(item)        
+		self.addProperty(item, "DefectCorrection_DarkPixels")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Height")
+		item = self.variantManager.addProperty(QVariant.Int, "Hot threshold")
+		item.setValue(65535) # default for hot pixels
 		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 1024)
+		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
-		item.setValue(0) # default
-		self.outputLensletItem.addSubProperty(item)        
-		self.addProperty(item, "OutputLenslet_Height")
+		self.defectCorrectionItem.addSubProperty(item)        
+		self.addProperty(item, "DefectCorrection_HotPixels")
 
 
-		
 
+        # Configuration of the properties manager:
+		self.matrixManipulationItem = self.variantManager.addProperty(\
+            QtVariantPropertyManager.groupTypeId(), "Matrix manipulation")
+
+		item = self.variantManager.addProperty(QVariant.Bool, "Rebinning 2x2")
+		item.setValue(False) # default
+		self.matrixManipulationItem.addSubProperty(item)        
+		self.addProperty(item, "MatrixManipulation_Rebinning2x2")
+
+		self.flatFieldingItem = self.variantManager.addProperty(\
+		QtVariantPropertyManager.groupTypeId(), "Flat Fielding")
 	
-		self.variantEditor.addProperty(self.inputLensletItem)
-		self.variantEditor.addProperty(self.outputLensletItem)
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
+		enumNames = QList()
+		for method in kstPreprocessingPanel.flatfielding_methods:  
+			enumNames.append(method)
+		item.setAttribute("enumNames", enumNames)
+		item.setValue(0) # default: "conventional"
+		self.flatFieldingItem.addSubProperty(item)        
+		self.addProperty(item, "FlatFielding_Method")
+
+		item = self.variantManager.addProperty(QVariant.Bool, "Log transform")
+		item.setValue(True) # default
+		self.flatFieldingItem.addSubProperty(item)        
+		self.addProperty(item, "FlatFielding_LogTransform")
+
+			
+		self.variantEditor.addProperty(self.defectCorrectionItem)
+		self.variantEditor.addProperty(self.matrixManipulationItem)
+		self.variantEditor.addProperty(self.flatFieldingItem)
+
 
 		if isinstance(self.variantEditor, QtTreePropertyBrowser):
 			self.variantEditor.setPropertiesWithoutValueMarked(True)

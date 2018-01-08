@@ -11,7 +11,7 @@ from kstPreprocessingPanel import kstPreprocessingPanel
 from kstReconstructionPanel import kstReconstructionPanel
 
 KST_SIDEBAR_HDFVIEW = "Dataset Info"
-#KST_SIDEBAR_PREPROC = "Pre-processing"
+KST_SIDEBAR_PREPROC = "Pre-processing"
 KST_SIDEBAR_RECON = "Reconstruction"
 
 class kstSidebar(QWidget):
@@ -27,14 +27,14 @@ class kstSidebar(QWidget):
 		self.hdfViewerTab = kstHDFViewer()
 
 		# Configure the alignment tab:
-		#self.preprocessingTab = kstPreprocessingPanel()
+		self.preprocessingTab = kstPreprocessingPanel()
 
 		# Configure the refocusing tab:
 		self.refocusingTab = kstReconstructionPanel()
 
 		# Configure the whole widget:
 		self.toolbox.addItem(self.hdfViewerTab, KST_SIDEBAR_HDFVIEW)
-		#self.toolbox.addItem(self.preprocessingTab, KST_SIDEBAR_PREPROC)
+		self.toolbox.addItem(self.preprocessingTab, KST_SIDEBAR_PREPROC)
 		self.toolbox.addItem(self.refocusingTab, KST_SIDEBAR_RECON)
 
 		# Define layout:

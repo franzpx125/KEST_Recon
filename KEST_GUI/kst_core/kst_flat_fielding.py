@@ -4,7 +4,7 @@
 #
 from numpy import int_, float32, finfo, gradient, sqrt, ndarray, real, dot, sort
 from numpy import std, zeros, cov, diag, mean, sum, ComplexWarning, amin, amax
-from numpy import concatenate, tile, median
+from numpy import concatenate, tile, median, repeat, newaxis
 
 from numpy.random import randn
 from numpy.linalg import eig
@@ -100,7 +100,7 @@ def __f(x, proj, meanFF, FF):
 	return cost
 
 
-def dff_prepare_plan(white_dset, repetitions, dark):
+def dff_prepare_plan(flat_dset, repetitions):
 	""" Prepare the Eigen Flat Fields (EFFs) and the filtered EFFs to
 	be used for dynamic flat fielding.
 
@@ -143,9 +143,9 @@ def dff_prepare_plan(white_dset, repetitions, dark):
 
 	"""	
 	# Get dimensions of flat-field (or white-field) images:
-	num_flats = get_nr_projs(white_dset)
-	num_rows  = get_nr_sinos(white_dset)
-	num_cols  = get_det_size(white_dset)
+	num_flats = flat_dset.shape[2]
+	num_rows  = flat_dset.shape[0]
+	num_cols  = flat_dset.shape[1]
 		
 	# Create local copy of white-field dataset:
 	tmp_dset = zeros((num_rows * num_cols, num_flats), dtype=float32)
@@ -154,8 +154,8 @@ def dff_prepare_plan(white_dset, repetitions, dark):
 	# For all the flat images:
 	for i in range(0, tmp_dset.shape[1]):                 
 		
-		# Read i-th flat image and dark-correct:
-		tmp_dset[:,i] =  read_tomo(white_dset,i).astype(float32).flatten()	- dark.astype(float32).flatten()
+		# Read i-th flat image:       
+		tmp_dset[:,i] =  flat_dset[:,:,i].astype(float32).flatten()
 					
 		# Sum the image:
 		avg = avg + tmp_dset[:,i]
@@ -238,17 +238,49 @@ def dynamic_flat_fielding(im, EFF, filtEFF, downsample):
 	im = im / (mean(im) + finfo(float32).eps) * mean_val
 			
 	# Quick and dirty compensation for detector afterglow:
-	size_ct = 3
-	while ((float(amin(im)) < finfo(float32).eps) and (size_ct <= 7)):			
-		im_f = median_filter(im, size_ct)
-		im[im < finfo(float32).eps] = im_f[im < finfo(float32).eps]								
-		size_ct += 2
+	#size_ct = 3
+	#while ((float(amin(im)) < finfo(float32).eps) and (size_ct <= 7)):			
+	#	im_f = median_filter(im, size_ct)
+	#	im[im < finfo(float32).eps] = im_f[im < finfo(float32).eps]								
+	#	size_ct += 2
 				
-	if (float(amin(im)) < finfo(float32).eps):				
-		im[im < finfo(float32).eps] = finfo(float32).eps	
+	#if (float(amin(im)) < finfo(float32).eps):				
+	#	im[im < finfo(float32).eps] = finfo(float32).eps	
 
 	# Return pre-processed image:
 	return im
+
+def conventional_flat_fielding(im, ff):
+	""" Apply conventional flat fielding to the whole input projection dataset.
+	
+	Parameters
+	----------
+	im : array_like
+		The (dark-corrected) projection images to process.
+		
+	ff : array_like
+		Flat field images.
+
+	Return value
+	------------
+	im : array_like
+		Filtered projections.
+
+	"""				
+	# Cast the input image:
+	im = im.astype(float32)
+		
+    # Medianize along the third dimension:
+	ff = median(ff, axis=2)
+
+	# Replicate as many input projections:
+	ff = repeat(ff[:, :, newaxis], im.shape[2], axis=2)
+
+	# Dynamic flat fielding (point-to-point division):
+	im = im / (ff + finfo(float32).eps)	
+
+	# Return pre-processed image:
+	return im.astype(float32)
 
 
 

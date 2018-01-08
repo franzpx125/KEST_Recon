@@ -1,57 +1,109 @@
-﻿#
-# Author: Francesco Brun
-# Last modified: July, 8th 2016
-#
+﻿from numpy import float32, finfo, ndarray, isnan, isinf, logical_or
+from numpy import median, amin, amax, nonzero, percentile, pad
+from numpy import tile, concatenate, reshape, interp, zeros
 
-from numpy import concatenate
-
-#import imp, inspect, os
-#import ringremoval
+from scipy.ndimage.filters import median_filter
 
 
-def ring_correction (im, ringrem, flat_end, skip_flat_after, half_half, half_half_line, ext_fov):
-	"""Apply ring artifacts compensation by de-striping the input sinogram.
+def pixel_correction (im, dead_thresh=0, hot_thresh=65535):
+	"""Correct with interpolation for NaN, Inf, dead and hot pixels.
 
-    Parameters
-    ----------
+	Parameters
+	----------
+	im : array_like
+		Image data as numpy array. 
+
+    dead_thresh : int
+		Pixels having gray level below this threshold are considered as dead.
+        (default = 0).
+
+    hot_thresh : int
+		Pixels having gray level above this threshold are considered as hot.
+        (default = 655353, i.e. 16-bit saturation).
+
+    Return
+	----------
     im : array_like
-		Image data (sinogram) as numpy array. 
-	
-	ringrem : string
-		String containing ring removal method and parameters
-	
-	half_half : bool
-		True to separately process the sinogram in two parts
-	
-	half_half_line : int
-		Line number considered to identify the two parts to be processed separately. 
-		(This parameter is ignored if half_half is False)
-	
-	skip_flat_after e ext_fov SERVE???
-    
-    """
-	# Get method and args:
-	method, args = ringrem.split(":", 1)
+        Image data as numpy array with the correction applied.
 
-	# The "none" filter means no filtering:
-	if (method != "none"):
+    msk : array_like
+        Image data as numpy array of Python type bool with True for the corrected 
+        pixels, False otherwise.
 
-		# Dinamically load module:
-		path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-		m = imp.load_source(method, path + '\\ringremoval\\'+ method + '.py')
-			
-		if ( (method == "rivers") or (method == "boinhaibel") ):
-
-			if flat_end and not skip_flat_after and half_half and not ext_fov:	
-				im_top    = getattr(m, method)( im[0:half_half_line,:], args)
-				im_bottom = getattr(m, method)( im[half_half_line:,:], args)
-				im = concatenate((im_top,im_bottom), axis=0)					
-			else:
-				im = getattr(m, method)(im, args)
+	"""	
 	
-		else:
-		
-			# Call the module dynamically:
-			im = getattr(m, method)(im, args)
+	# Pad:
+	im = pad(im, (1,1), 'median')
+	msk = zeros(im.shape, dtype=bool)
 
-	return im 
+	# Flat:
+	im_f = im.flatten().astype(float32)
+	msk_f = msk.flatten()	
+
+	# Correct for NaNs:
+	val, x = isnan(im_f), lambda z: z.nonzero()[0]
+	im_f[val] = interp(x(val), x(~val), im_f[~val])
+	msk_f = logical_or(msk_f, val)
+
+	# Correct for Infs:
+	val, x = isinf(im_f), lambda z: z.nonzero()[0]
+	im_f[val] = interp(x(val), x(~val), im_f[~val])   
+	msk_f = logical_or(msk_f, val)
+
+	# Correct for saturated dead pixels:
+	val, x = (im_f <= dead_thresh), lambda z: z.nonzero()[0]
+	im_f[val] = interp(x(val), x(~val), im_f[~val])
+	msk_f = logical_or(msk_f, val)
+
+	# Correct for saturated hot pixels (16-bit range considered):	
+	val, x = (im_f >= hot_thresh), lambda z: z.nonzero()[0]
+	im_f[val] = interp(x(val), x(~val), im_f[~val])
+	msk_f = logical_or(msk_f, val)
+
+	# Reshape:
+	im_f = reshape(im_f, (im.shape[1], im.shape[0]), order='F').copy().T
+	msk_f = reshape(msk_f, (msk.shape[1], msk.shape[0]), order='F').copy().T
+
+	# Crop:
+	im = im_f[1:-1,1:-1]
+	msk = msk_f[1:-1,1:-1]
+
+	return im, msk 
+
+
+
+def afterglow_correction (im, max_depth=7):
+	"""Correct afterglow (i.e. values below zero after flat fielding) 
+    by adaptive median filtering
+
+	Parameters
+	----------
+	im : array_like
+		Image data as numpy array. 
+
+    max_depth : int
+        If a single pass with a 3x3 median filter does not correct all the 
+        negative values, a second pass with a 5x5 and then a third, and forth,
+        ... passes until a max_depth x max_depth filter is considered. After
+        that, all negative values are replaced with the global average.
+
+    Return
+	----------
+    im : array_like
+        Image data as numpy array with the correction applied.
+	
+	"""
+
+	# Quick and dirty compensation for detector afterglow (it works well for isolated spots):
+	size_ct = 3
+	while ( ( float(amin(im)) <  0.0) and (size_ct <= max_depth) ):			
+		im_f = median_filter(im, size_ct)
+		im[im < 0.0] = im_f[im < 0.0]					
+		size_ct += 2
+
+	# Compensate negative values by replacing them with the average value of the image:		
+	if (float(amin(im)) <  finfo(float32).eps):			
+		rplc_value = sum(im [im > finfo(float32).eps]) / sum(im > finfo(float32).eps)		
+		im [im < finfo(float32).eps] = rplc_value
+
+	return im
