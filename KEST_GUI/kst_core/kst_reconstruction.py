@@ -78,7 +78,7 @@ def recon_astra_fdk(proj, angles, ssd, sdd, pixel_size, offset_u, offset_v, shor
 	alg_id = astra.algorithm.create(cfg)
 	astra.algorithm.run(alg_id, 1)
 
-	# Get the result:
+	# Get the result and permute:
 	rec = astra.data3d.get(rec_id)
 	rec = transpose(rec,(1,2,0) )
 

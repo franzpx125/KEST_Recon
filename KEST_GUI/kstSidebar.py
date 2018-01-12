@@ -30,12 +30,12 @@ class kstSidebar(QWidget):
 		self.preprocessingTab = kstPreprocessingPanel()
 
 		# Configure the refocusing tab:
-		self.refocusingTab = kstReconstructionPanel()
+		self.reconstructionTab = kstReconstructionPanel()
 
 		# Configure the whole widget:
 		self.toolbox.addItem(self.hdfViewerTab, KST_SIDEBAR_HDFVIEW)
 		self.toolbox.addItem(self.preprocessingTab, KST_SIDEBAR_PREPROC)
-		self.toolbox.addItem(self.refocusingTab, KST_SIDEBAR_RECON)
+		self.toolbox.addItem(self.reconstructionTab, KST_SIDEBAR_RECON)
 
 		# Define layout:
 		layout = QVBoxLayout()

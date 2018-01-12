@@ -1,13 +1,10 @@
-import os.path 
-import h5py
-import platform
-import psutil
-
 from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBox, QSizePolicy 
 from PyQt5.QtWidgets import QTextEdit, QTabWidget, QFrame
 from PyQt5.QtGui import QIcon, QFont, QFontMetrics
 from PyQt5.QtCore import Qt
 
+import time
+import datetime
 
 class kstLogPanel(QWidget):
 
@@ -45,22 +42,32 @@ class kstLogPanel(QWidget):
 		self.setContentsMargins(0,1,0,0)	
 		layout.setContentsMargins(0,1,0,0)
 		layout.addWidget(self.tabWidget)		
-		self.setLayout(layout)
-
-		# Startup message:
-		platf = platform.uname()
-
-		cpus = psutil.cpu_count()
-		stat = psutil.virtual_memory()
-		ram = (stat.total) / (1024.0 * 1024 * 1024) # GB
-	
-		# system, node, release, version, machine, and processor.
-		val = "KEST running on " + platf.node + " (# of CPUs: " + str(cpus) + ", RAM: " + \
-			"{:.2f}".format(ram) + " GB)"
-
-		self.outputLog.append(val)
+		self.setLayout(layout)	
 
 
+	def __printMessage__(self, message, type):
 
+		# Add text to a QTextEdit with a timestamp first:
+		ts = time.time()
+		st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+		st = '[' + st + '] '
+
+		if (type == 'error'):
+			self.errorLog.append(st + message)
+
+		else:
+			self.outputLog.append(st + message)
+
+
+	def logOutput(self, message):
+		""" Log a message in the output log.
+		"""
+		self.__printMessage__(message, 'output')
+
+
+	def logError(self, message):
+		""" Log a message in the error log.
+		"""
+		self.__printMessage__(message, 'error')
 
 	

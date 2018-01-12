@@ -89,7 +89,7 @@ class kstImageViewer(QWidget):
 		self.toolBar.addSeparator()
 
 		# Combo box for the 4 "views" of a light-field image:
-		self.lblLightField = QLabel(" Lightfield: ")   # Use spaces		
+		self.lblLightField = QLabel(" View: ")   # Use spaces		
 		self.lblLightFieldAction = self.toolBar.addWidget(self.lblLightField)		
 
 		self.cbxLightField = QComboBox()
@@ -98,15 +98,15 @@ class kstImageViewer(QWidget):
 		self.cbxLightFieldAction = self.toolBar.addWidget(self.cbxLightField)		
 
 		# Slider for the refocusing:
-		self.lblRefocusing = QLabel(" Refocusing: ") # Use spaces
-		self.lblRefocusingAction = self.toolBar.addWidget(self.lblRefocusing)		
+		self.lblSlider = QLabel(" Projections: ") # Use spaces
+		self.lblSliderAction = self.toolBar.addWidget(self.lblSlider)		
 		
-		self.sldRefocusing = QSlider(Qt.Horizontal) 
-		self.sldRefocusing.setFixedWidth(150)
-		self.sldRefocusing.setFocusPolicy(Qt.StrongFocus)
-		self.sldRefocusing.setTickPosition(QSlider.TicksBelow)
-		self.sldRefocusingAction = self.toolBar.addWidget(self.sldRefocusing)		
-		self.sldRefocusing.valueChanged.connect(self.changeRefocusedView)
+		self.sldDataset = QSlider(Qt.Horizontal) 
+		self.sldDataset.setFixedWidth(150)
+		self.sldDataset.setFocusPolicy(Qt.StrongFocus)
+		self.sldDataset.setTickPosition(QSlider.TicksBelow)
+		self.sldDatasetAction = self.toolBar.addWidget(self.sldDataset)		
+		self.sldDataset.valueChanged.connect(self.changeDatasetView)
 
         # Separator:
 		self.fooWidget = QWidget()
@@ -217,39 +217,41 @@ class kstImageViewer(QWidget):
 		if (self.__imageType == 'raw'):
 			self.lblLightFieldAction.setVisible(False)
 			self.cbxLightFieldAction.setVisible(False)
-			self.lblRefocusingAction.setVisible(False)
-			self.sldRefocusingAction.setVisible(False)
-			self.fooWidgetAction.setVisible(False)
-			self.extraSeparatorAction.setVisible(False)
-		elif (self.__imageType == 'lightfield'):
-			self.lblLightFieldAction.setVisible(True)
-			self.cbxLightFieldAction.setVisible(True)
-			self.lblRefocusingAction.setVisible(False)
-			self.sldRefocusingAction.setVisible(False)
+			self.lblSliderAction.setVisible(True)
+			self.sldDatasetAction.setVisible(True)
 			self.fooWidgetAction.setVisible(True)
 			self.extraSeparatorAction.setVisible(True)
-		elif (self.__imageType == 'refocused'):
+
+		elif (self.__imageType == 'pre-processed'):
 			self.lblLightFieldAction.setVisible(False)
 			self.cbxLightFieldAction.setVisible(False)
-			self.lblRefocusingAction.setVisible(True)
-			self.sldRefocusingAction.setVisible(True)
+			self.lblSliderAction.setVisible(True)
+			self.sldDatasetAction.setVisible(True)
 			self.fooWidgetAction.setVisible(True)
 			self.extraSeparatorAction.setVisible(True)
 
-			# Set dimension of the slider:
-			self.sldRefocusing.setMinimum(0)
-			self.sldRefocusing.setMaximum(self.__data.shape[0]-1)
-			self.sldRefocusing.setValue(round(self.__data.shape[0]))
+		elif (self.__imageType == 'reconstructed'):
+			self.lblLightFieldAction.setVisible(True)
+			self.cbxLightFieldAction.setVisible(True)
+			self.lblSliderAction.setVisible(True)
+			self.sldDatasetAction.setVisible(True)
+			self.fooWidgetAction.setVisible(True)
+			self.extraSeparatorAction.setVisible(True)
+
+		# Set dimension of the slider and default:
+		self.sldDataset.setMinimum(0)
+		self.sldDataset.setMaximum(self.__data.shape[2]-1)
+		self.sldDataset.setValue(round(self.__data.shape[2]/2))
 
 
-	def changeRefocusedView(self):
+	def changeDatasetView(self):
 		""" Called when the slider is moved, so user wants to see a different
 			refocused image.
 		"""
-		val = int(self.sldRefocusing.value())
+		val = int(self.sldDataset.value())
 
 		# Change to the new numpy image:
-		self.imagePanel.changeImage(self.__data[val,:,:])
+		self.imagePanel.changeImage(self.__data[:,:,val])
 			
 
 	def getType(self):
@@ -259,6 +261,7 @@ class kstImageViewer(QWidget):
 		# Set the new numpy image:
 		return self.__imageType
 
+
 	def getSourceFile(self):
 		""" Get the source file of current image viewer.
 		"""
@@ -266,12 +269,14 @@ class kstImageViewer(QWidget):
 		# Set the new numpy image:
 		return self.__sourceFile
 
+
 	def getImage(self):
 		""" Get the scene's current image pixmap as a numpy array.
 		"""
 
 		# Set the new numpy image:
 		return self.imagePanel.npImage
+
 
 	def getData(self):
 		""" Get the data connected to this image viewer.

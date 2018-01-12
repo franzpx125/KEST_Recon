@@ -10,6 +10,7 @@ import kst_core.kst_matrix_manipulation as kst_matrix_manipulation
 import kst_core.kst_reconstruction as kst_reconstruction
 
 from PyQt5.QtWidgets import QWidget, QApplication
+from PyQt5.QtCore import QTimer
 
 #from VoxImageViewer import VoxImageViewer
 #from VoxImagePanel import VoxImagePanel
@@ -33,18 +34,19 @@ class Redirect(object):
 	def write(self, text):
 		""" Forwarding of a print() command.
 		"""
-		# Add text to a QTextEdit...
+
+        # Append without new line:
 		self.wg.append(text)
 
 
 
 #if __name__ == '__main__':
 
-#	#low, high = kst_io.read_pixirad_data('J:\\KEST\\MisureNovembrePisa\\DATA\\tomo_1s_20_30_I1_I2_Ba1_Ba2_H2o_50kV_2mmAl.dat')
-#	#flat_low, flat_high = kst_io.read_pixirad_data('J:\\KEST\\MisureNovembrePisa\\DATA\\tomo_1s_20_30_I1_I2_Ba1_Ba2_H2o_50kV_2mmA_flatl.da-')
+#	low, high = kst_io.read_pixirad_data('C:\Temp\A.dat')
+#	flat_low, flat_high = kst_io.read_pixirad_data('C:\Temp\A_flat.dat')
 
-#	low  = kst_io.read_tiff_sequence('J:\\TestDatasets_CWI\\D_conebeam\\projections_0.25\\tomo*.tif')
-#	flat_low = kst_io.read_tiff_sequence('J:\\TestDatasets_CWI\\D_conebeam\\projections_0.25\\airraw*.tif')
+#	#Flow  = kst_io.read_tiff_sequence('J:\\TestDatasets_CWI\\D_conebeam\\projections_0.25\\tomo*.tif')
+#	#flat_low = kst_io.read_tiff_sequence('J:\\TestDatasets_CWI\\D_conebeam\\projections_0.25\\airraw*.tif')
 
 #	msk_low = numpy.zeros(low.shape, dtype=bool)
 #	msk_flat_low = numpy.zeros(flat_low.shape, dtype=bool)
@@ -57,21 +59,22 @@ class Redirect(object):
 #	low = kst_flat_fielding.conventional_flat_fielding(low, flat_low)
 #	low = -numpy.log(low)	
 
-#	low_up = numpy.zeros( (low.shape[0]*2, low.shape[1]*2, low.shape[2]), low.dtype)
+##	low_up = numpy.zeros( (low.shape[0]*2, low.shape[1]*2, low.shape[2]), low.dtype)
 #	for i in range(0, low.shape[2]):
 
-#		#imsave('J:\\KEST\\MisureNovembrePisa\\DATA\\TestDFF\\low\\orig_' + str(i).zfill(4) + '.tif', low[:,:,i].astype(numpy.float32))
-#		low_up[:,:,i] = kst_matrix_manipulation.upscaling2x2(low[:,:,i], method='linear')
-#		#imsave('J:\\KEST\\MisureNovembrePisa\\DATA\\TestDFF\\low\\up_' + str(i).zfill(4) + '.tif', low_up[:,:,i].astype(numpy.float32))
+#		imsave('C:\Temp\\buttami\\filt_' + str(i).zfill(4) + '.tif', low[:,:,i].astype(numpy.float32))
+#		imsave('C:\Temp\\buttami\\msk_' + str(i).zfill(4) + '.tif', msk_low[:,:,i].astype(numpy.float32))
+##		low_up[:,:,i] = kst_matrix_manipulation.upscaling2x2(low[:,:,i], method='linear')
+##		#imsave('J:\\KEST\\MisureNovembrePisa\\DATA\\TestDFF\\low\\up_' + str(i).zfill(4) + '.tif', low_up[:,:,i].astype(numpy.float32))
 
-#	#low = low[:,:,:351]
-#	#rec = kst_reconstruction.recon_astra_fdk(low, 2*numpy.pi, 500.0, 50.0, 0.062, -50, 0, scaling_factor=0.5)
-#	rec = kst_reconstruction.recon_astra_fdk(low_up.astype(numpy.float32), 2*numpy.pi, 80.0, 100.0, 0.025*2.0, -9/2.0, 0.0)
+##	#low = low[:,:,:363]
+##	#rec = kst_reconstruction.recon_astra_fdk(low, 2*numpy.pi, 500.0, 50.0, 0.062, -50, 0, scaling_factor=0.5)
+#	rec = kst_reconstruction.recon_astra_fdk(low.astype(numpy.float32), 2*numpy.pi, 80.0, 100.0, 0.025*4.0, -15/4.0, 0.0)
 
 
-#	for i in range(0, rec.shape[2]):
+	#for i in range(0, rec.shape[2]):
 
-#		imsave('J:\\KEST\\MisureNovembrePisa\\DATA\\TestDFF\\low\\rec_' + str(i).zfill(4) + '.tif', rec[:,:,i].astype(numpy.float32))
+	#	imsave('J:\\KEST\\MisureNovembrePisa\\DATA\\TestDFF\\low\\rec_' + str(i).zfill(4) + '.tif', rec[:,:,i].astype(numpy.float32))
 
 	
 	#msk_low = numpy.zeros(low.shape, dtype=bool)
@@ -141,4 +144,6 @@ if __name__ == '__main__':
 
 	# Run application:
 	mainWindow.show()
+	t = QTimer()
+	t.singleShot(0,mainWindow.onQApplicationStarted)
 	sys.exit(app.exec_())

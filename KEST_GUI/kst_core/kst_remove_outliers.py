@@ -5,7 +5,7 @@ from numpy import tile, concatenate, reshape, interp, zeros
 from scipy.ndimage.filters import median_filter
 
 
-def pixel_correction (im, dead_thresh=0, hot_thresh=65535):
+def pixel_correction (im, dead_th=0, hot_th=65535):
 	"""Correct with interpolation for NaN, Inf, dead and hot pixels.
 
 	Parameters
@@ -13,11 +13,11 @@ def pixel_correction (im, dead_thresh=0, hot_thresh=65535):
 	im : array_like
 		Image data as numpy array. 
 
-    dead_thresh : int
+    dead_th : int
 		Pixels having gray level below this threshold are considered as dead.
         (default = 0).
 
-    hot_thresh : int
+    hot_th : int
 		Pixels having gray level above this threshold are considered as hot.
         (default = 655353, i.e. 16-bit saturation).
 
@@ -33,36 +33,24 @@ def pixel_correction (im, dead_thresh=0, hot_thresh=65535):
 	"""	
 	
 	# Pad:
-	im = pad(im, (1,1), 'median')
+	im = pad(im, (1,1), 'edge')
 	msk = zeros(im.shape, dtype=bool)
 
 	# Flat:
 	im_f = im.flatten().astype(float32)
 	msk_f = msk.flatten()	
 
-	# Correct for NaNs:
-	val, x = isnan(im_f), lambda z: z.nonzero()[0]
-	im_f[val] = interp(x(val), x(~val), im_f[~val])
-	msk_f = logical_or(msk_f, val)
-
-	# Correct for Infs:
-	val, x = isinf(im_f), lambda z: z.nonzero()[0]
-	im_f[val] = interp(x(val), x(~val), im_f[~val])   
-	msk_f = logical_or(msk_f, val)
-
-	# Correct for saturated dead pixels:
-	val, x = (im_f <= dead_thresh), lambda z: z.nonzero()[0]
-	im_f[val] = interp(x(val), x(~val), im_f[~val])
-	msk_f = logical_or(msk_f, val)
-
-	# Correct for saturated hot pixels (16-bit range considered):	
-	val, x = (im_f >= hot_thresh), lambda z: z.nonzero()[0]
+	# Correct for NaNs, Infs, dead, hot:
+	val, x = logical_or.reduce(( isnan(im_f), isinf(im_f), (im_f <= dead_th), \
+		(im_f >= hot_th))), lambda z: z.nonzero()[0]
 	im_f[val] = interp(x(val), x(~val), im_f[~val])
 	msk_f = logical_or(msk_f, val)
 
 	# Reshape:
-	im_f = reshape(im_f, (im.shape[1], im.shape[0]), order='F').copy().T
-	msk_f = reshape(msk_f, (msk.shape[1], msk.shape[0]), order='F').copy().T
+	im_f = reshape(im_f, (im.shape[1], im.shape[0]), order='F')
+	msk_f = reshape(msk_f, (msk.shape[1], msk.shape[0]), order='F')
+	im_f = im_f.T
+	msk_f = msk_f.T
 
 	# Crop:
 	im = im_f[1:-1,1:-1]
