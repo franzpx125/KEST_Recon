@@ -90,15 +90,17 @@ class kstImageViewer(QWidget):
 
 		# Combo box for the 4 "views" of a light-field image:
 		self.lblLightField = QLabel(" View: ")   # Use spaces		
-		self.lblLightFieldAction = self.toolBar.addWidget(self.lblLightField)		
+		self.lblLightFieldAction = self.toolBar.addWidget(self.lblLightField)	
+		self.lblLightFieldAction.setVisible(False)	
 
 		self.cbxLightField = QComboBox()
 		#for mode in vox.lightfield.VoxLightfield.available_modes:
 		#	self.cbxLightField.addItem(mode)
-		self.cbxLightFieldAction = self.toolBar.addWidget(self.cbxLightField)		
+		self.cbxLightFieldAction = self.toolBar.addWidget(self.cbxLightField)	
+		self.cbxLightFieldAction.setVisible(False)	
 
 		# Slider for the refocusing:
-		self.lblSlider = QLabel(" Projections: ") # Use spaces
+		self.lblSlider = QLabel(" Images: ") # Use spaces
 		self.lblSliderAction = self.toolBar.addWidget(self.lblSlider)		
 		
 		self.sldDataset = QSlider(Qt.Horizontal) 
@@ -231,8 +233,8 @@ class kstImageViewer(QWidget):
 			self.extraSeparatorAction.setVisible(True)
 
 		elif (self.__imageType == 'reconstructed'):
-			self.lblLightFieldAction.setVisible(True)
-			self.cbxLightFieldAction.setVisible(True)
+			self.lblLightFieldAction.setVisible(False)
+			self.cbxLightFieldAction.setVisible(False)
 			self.lblSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
 			self.fooWidgetAction.setVisible(True)

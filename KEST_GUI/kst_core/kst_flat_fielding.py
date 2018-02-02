@@ -250,6 +250,7 @@ def dynamic_flat_fielding(im, EFF, filtEFF, downsample):
 	# Return pre-processed image:
 	return im
 
+
 def conventional_flat_fielding(im, ff):
 	""" Apply conventional flat fielding to the whole input projection dataset.
 	
@@ -273,10 +274,13 @@ def conventional_flat_fielding(im, ff):
     # Medianize along the third dimension:
 	ff = median(ff, axis=2)
 
+	# Filter the ff image:
+	#ff = median_filter(ff, 3)
+
 	# Replicate as many input projections:
 	ff = repeat(ff[:, :, newaxis], im.shape[2], axis=2)
 
-	# Dynamic flat fielding (point-to-point division):
+	# Conventional flat fielding (point-to-point division):
 	im = im / (ff + finfo(float32).eps)	
 
 	# Return pre-processed image:

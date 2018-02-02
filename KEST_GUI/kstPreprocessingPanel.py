@@ -29,6 +29,9 @@ class kstPreprocessingPanel(QWidget):
     # Available flat-fielding algorithms:
 	flatfielding_methods = ('conventional', 'dynamic')
 
+    # Defect correction methods:
+	defectcorrection_methods = ('automatic', 'manual')
+
     # Event raised when the user wants to perform the pre-processing:
 	preprocessingRequestedEvent = pyqtSignal()
 
@@ -60,7 +63,7 @@ class kstPreprocessingPanel(QWidget):
 		btnWidgetSpacer.setSizePolicy(spacerSizePolicy)
 
         # Calibrate button (left aligned):
-		self.btnPreview = QPushButton('Preview', self)
+		self.btnPreview = QPushButton('Auto dark/hot', self)
 		self.btnPreview.clicked.connect(self.handleCalibrate)
 
         # Apply button (right aligned):
@@ -84,22 +87,51 @@ class kstPreprocessingPanel(QWidget):
         # Configuration of the properties manager:
 		self.defectCorrectionItem = self.variantManager.addProperty(\
             QtVariantPropertyManager.groupTypeId(), "Defect correction")
+
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
+		enumNames = QList()
+		for method in kstPreprocessingPanel.defectcorrection_methods:  
+			enumNames.append(method)
+		item.setAttribute("enumNames", enumNames)
+		item.setValue(0) # default: "conventional"
+		self.defectCorrectionItem.addSubProperty(item)        
+		self.addProperty(item, "DefectCorrection_Method")
 	
-		item = self.variantManager.addProperty(QVariant.Int, "Dark threshold")
+		item = self.variantManager.addProperty(QVariant.Int, "Low - Dark threshold")
 		item.setValue(0) # default for dead pixels
 		item.setAttribute("minimum", 0)
 		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
+		item.setEnabled(False) # default
 		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "DefectCorrection_DarkPixels")
+		self.addProperty(item, "Low_DefectCorrection_DarkPixels")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Hot threshold")
+		item = self.variantManager.addProperty(QVariant.Int, "Low - Hot threshold")
 		item.setValue(65535) # default for hot pixels
 		item.setAttribute("minimum", 0)
 		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
+		item.setEnabled(False) # default
 		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "DefectCorrection_HotPixels")
+		self.addProperty(item, "Low_DefectCorrection_HotPixels")
+
+		item = self.variantManager.addProperty(QVariant.Int, "High - Dark threshold")
+		item.setValue(0) # default for dead pixels
+		item.setAttribute("minimum", 0)
+		item.setAttribute("maximum", 65535)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(False) # default
+		self.defectCorrectionItem.addSubProperty(item)        
+		self.addProperty(item, "High_DefectCorrection_DarkPixels")
+
+		item = self.variantManager.addProperty(QVariant.Int, "High - Hot threshold")
+		item.setValue(65535) # default for hot pixels
+		item.setAttribute("minimum", 0)
+		item.setAttribute("maximum", 65535)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(False) # default
+		self.defectCorrectionItem.addSubProperty(item)        
+		self.addProperty(item, "High_DefectCorrection_HotPixels")
 
 
 

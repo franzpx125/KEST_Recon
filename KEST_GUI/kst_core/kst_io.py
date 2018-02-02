@@ -21,7 +21,7 @@ def read_pixirad_data (filename):
 	size = round(data.shape[0] / (PIXIRAD_WIDTH*PIXIRAD_HEIGHT + PIXIRAD_SKIP))
 	a = arange(0,PIXIRAD_SKIP)
 	aa = tile(a,(size,1))
-	b = (PIXIRAD_WIDTH*PIXIRAD_HEIGHT)*arange(0,aa.shape[0])
+	b = (PIXIRAD_WIDTH*PIXIRAD_HEIGHT + PIXIRAD_SKIP)*arange(0,aa.shape[0])
 	bb = tile(b.T,(aa.shape[1],1))
 	idx = (aa + bb.T).flatten()
 	data = delete(data,idx)

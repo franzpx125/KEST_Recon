@@ -19,9 +19,10 @@ from kstUtils import eprint
 
 from kst_core.kst_preprocessing import pre_processing
 from kst_core.kst_io import read_pixirad_data
-from kst_core.kst_reconstruction import recon_astra_fdk
+from kst_core.kst_reconstruction import recon_astra_fdk, recon_astra_sirt
+from kst_core.kst_remove_outliers import estimate_dead_hot
 
-SW_TITLE = "KEST - v. 0.1 alpha"
+SW_TITLE = "KEST Recon - v. 0.1 alpha"
 SW_QUIT_MSG = "This will close the application. Are you sure?"
 RAW_TABLABEL = "raw"
 PREPROC_TABLABEL = "preprocessed"
@@ -114,15 +115,18 @@ class PreprocessThread(QThread):
 	logOutput = pyqtSignal(object)         
 	error = pyqtSignal(object, object)         
 
-	def __init__(self, parent, low, high, sourceFile, dark_th, hot_th, method, rebinning, logTransform):
+	def __init__(self, parent, low, high, sourceFile, low_dark_th, low_hot_th, \
+            high_dark_th, high_hot_th, method, rebinning, logTransform):
 		""" Class constructor.
 		"""
 		super(PreprocessThread, self).__init__(parent)
 
 		self.low = low.astype(numpy.float32)
 		self.high = high.astype(numpy.float32)
-		self.dark_th = dark_th
-		self.hot_th = hot_th
+		self.low_dark_th = low_dark_th
+		self.low_hot_th = low_hot_th
+		self.high_dark_th = high_dark_th
+		self.high_hot_th = high_hot_th
 		self.method = method
 		self.rebinning = rebinning
 		self.logTransform = logTransform
@@ -138,8 +142,9 @@ class PreprocessThread(QThread):
 			self.logOutput.emit('Performing pre-processing...')
 			
 			# Do the pre-processing:
-			low, high = pre_processing(self.low, self. high, self.sourceFile, self.dark_th, \
-				self.hot_th, self.method, self.rebinning, self.logTransform)		
+			low, high = pre_processing(self.low, self. high, self.sourceFile, self.low_dark_th, \
+				self.low_hot_th, self.high_dark_th, self.high_hot_th, self.method, \
+                self.rebinning, self.logTransform)		
 
 			# At the end emit a signal with the outputs:
 			self.processDone.emit(low, high, self.sourceFile, PREPROC_TABLABEL)
@@ -161,7 +166,8 @@ class ReconThread(QThread):
 	logOutput = pyqtSignal(object)         
 	error = pyqtSignal(object, object)     
 
-	def __init__(self, parent, low, high, sourceFile, angles, ssd, sdd, px, det_u, det_v):
+	def __init__(self, parent, low, high, sourceFile, angles, ssd, sdd, px, \
+            det_u, det_v, short_scan=False, method='FDK', iterations=1):
 		""" Class constructor.
 		"""
 		super(ReconThread, self).__init__(parent)
@@ -175,6 +181,9 @@ class ReconThread(QThread):
 		self.det_u = det_u
 		self.det_v = det_v
 		self.sourceFile = sourceFile
+		self.method = method
+		self.iterations = iterations
+		self.short_scan = short_scan
 
 
 	def run(self):
@@ -186,11 +195,20 @@ class ReconThread(QThread):
 			self.logOutput.emit('Performing reconstruction...')
 			
 			# Do the reconstruction:
-			low = recon_astra_fdk(self.low, self.angles, self.ssd, self.sdd - self.ssd, \
-				self.px, self.det_u, self.det_v)
+			if (self.method == 'SIRT'):
+				low = recon_astra_sirt(self.low, self.angles, self.ssd, self.sdd - self.ssd, \
+						self.px, self.det_u, self.det_v, iterations=self.iterations)  
+				
+				high = recon_astra_sirt(self.high, self.angles, self.ssd, self.sdd - self.ssd, \
+						self.px, self.det_u, self.det_v, iterations=self.iterations)
+				  
+			else: # default FDK       
+				low = recon_astra_fdk(self.low, self.angles, self.ssd, self.sdd - self.ssd, \
+						self.px, self.det_u, self.det_v, short_scan=self.short_scan)
 
-			high = recon_astra_fdk(self.high, self.angles, self.ssd, self.sdd - self.ssd, \
-				self.px, self.det_u, self.det_v)
+				high = recon_astra_fdk(self.high, self.angles, self.ssd, self.sdd - self.ssd, \
+						self.px, self.det_u, self.det_v, short_scan=self.short_scan)
+			
 
 			# At the end emit a signal with the outputs:
 			self.reconDone.emit(low, high, self.sourceFile, RECON_TABLABEL)
@@ -242,7 +260,7 @@ class kstMainWindow(QMainWindow):
 		# Configure the sidebar:
 		self.sidebar.hdfViewerTab.openImageDataEvent.connect(self.openImage)
 		self.sidebar.preprocessingTab.preprocessingRequestedEvent.connect(self.applyPreprocessing)
-		#self.sidebar.preprocessingTab.calibrateRequestedEvent.connect(self.applyAutoCalibration)
+		self.sidebar.preprocessingTab.calibrateRequestedEvent.connect(self.applyAutoCalibration)
 		self.sidebar.reconstructionTab.recostructionRequestedEvent.connect(self.applyReconstruction)
 
 
@@ -255,7 +273,7 @@ class kstMainWindow(QMainWindow):
 
 		# Set title, icon and default size:
 		self.setWindowTitle(SW_TITLE)
-		self.setWindowIcon(QIcon(dir + "/resources/logo_voxel.png"))
+		self.setWindowIcon(QIcon(dir + "/resources/logo_kest.png"))
 		
 		# Default size:
 		self.resize(1024,768)		
@@ -351,7 +369,10 @@ class kstMainWindow(QMainWindow):
 				self.readThread.readDone.connect(self.handleJobDone)
 				self.readThread.logOutput.connect(self.handleOutputLog)
 				self.readThread.error.connect(self.handleThreadError)
-				self.readThread.start()			
+				self.readThread.start()	
+
+				# Open the related HDF5 (if exists):
+				self.sidebar.hdfViewerTab.setHDF5File("C:\\Temp\\test.kest")		
 
 		except Exception as e:
 			eprint(str(e))
@@ -386,15 +407,18 @@ class kstMainWindow(QMainWindow):
 			high = curr_right_tab.getData()
 
 			# Get params from UI:
-			dark_th = self.sidebar.preprocessingTab.getValue("DefectCorrection_DarkPixels")
-			hot_th = self.sidebar.preprocessingTab.getValue("DefectCorrection_HotPixels")
+			low_dark_th = self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_DarkPixels")
+			low_hot_th = self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_HotPixels")
+			high_dark_th = self.sidebar.preprocessingTab.getValue("High_DefectCorrection_DarkPixels")
+			high_hot_th = self.sidebar.preprocessingTab.getValue("High_DefectCorrection_HotPixels")
 			rebinning = self.sidebar.preprocessingTab.getValue("MatrixManipulation_Rebinning2x2")
 			method = self.sidebar.preprocessingTab.getValue("FlatFielding_Method")
 			logTransform = self.sidebar.preprocessingTab.getValue("FlatFielding_LogTransform")	
 
 			
 			# Call pre-processing (on a separate thread):
-			self.preprocessThread = PreprocessThread(self, low, high, sourceFile, dark_th, hot_th, method, rebinning, logTransform)
+			self.preprocessThread = PreprocessThread(self, low, high, sourceFile, low_dark_th, low_hot_th, \
+                low_dark_th, high_hot_th, method, rebinning, logTransform)
 			self.preprocessThread.processDone.connect(self.handleJobDone)            
 			self.preprocessThread.logOutput.connect(self.handleOutputLog)
 			self.preprocessThread.error.connect(self.handleThreadError)
@@ -453,8 +477,13 @@ class kstMainWindow(QMainWindow):
 			# Convert from degrees to radians:
 			angles = angles * numpy.pi / 180.0
 
+			# Convert to boolean for short_scan:
+			short_scan = False if (weights == 0) else True
+
 			# Call reconstruction (on a separate thread):
-			self.reconThread = ReconThread(self, low, high, sourceFile, angles, ssd, sdd, px, det_u, det_v)
+			self.reconThread = ReconThread(self, low, high, sourceFile, angles, ssd, sdd, \
+                px, det_u, det_v, short_scan, method, iterations)
+
 			self.reconThread.reconDone.connect(self.handleJobDone)                        
 			self.reconThread.logOutput.connect(self.handleOutputLog)
 			self.reconThread.error.connect(self.handleThreadError)
@@ -533,40 +562,39 @@ class kstMainWindow(QMainWindow):
 			# Set mouse wait cursor:
 			QApplication.setOverrideCursor(Qt.WaitCursor)
 
-			# Get current image:
-			curr_tab = self.mainPanel.tabImageViewers.currentWidget()
-			sourceFile = curr_tab.getSourceFile()
-						
-			# Call vox core library to create the 4D light field data structure:
-			#
-			
-			# Fake calibration: #####################################
-			with h5py.File(sourceFile, 'r') as f:
-				# Convert from HDF5 datasets to numpy arrays:
-				key = '/instrument/camera/micro_lenses_array/array_offsets'
-				array_offsets = numpy.empty((f[key].shape[0], f[key].shape[1]), dtype=f[key].dtype)
-				f[key].read_direct(array_offsets, numpy.s_[:, :])
+			# Disable buttons:
+			self.sidebar.reconstructionTab.button.setEnabled(False)
+			self.sidebar.preprocessingTab.btnApply.setEnabled(False)
 
-				# Convert from HDF5 datasets to numpy arrays:
-				key = '/instrument/camera/micro_lenses_array/lenslet_effective_size'
-				lenslet_effective_size = numpy.empty((f[key].shape[0], f[key].shape[1]), dtype=f[key].dtype)
-				f[key].read_direct(lenslet_effective_size, numpy.s_[:, :])
+			# Get current left image:
+			curr_left_tab = self.mainPanel.getCurrentLeftTab()
+			low = curr_left_tab.getData()
+			sourceFile = curr_left_tab.getSourceFile()
 
+			# Get current right image:
+			curr_right_tab = self.mainPanel.getCurrentRightTab()
+			high = curr_right_tab.getData()
+
+			# Call automatic dark/hot isolation:
+			low_dark_th, low_hot_th = estimate_dead_hot(low)
+			high_dark_th, high_hot_th = estimate_dead_hot(high)
 
 			# Fill the UI properties with the values:
-			self.sidebar.preprocessingTab.setValue("InputLenslet_Width", float(lenslet_effective_size[1][0]))
-			self.sidebar.preprocessingTab.setValue("InputLenslet_Height", float(lenslet_effective_size[0][0]))
-			self.sidebar.preprocessingTab.setValue("InputLenslet_OffsetLeft", float(array_offsets[1][0]))
-			self.sidebar.preprocessingTab.setValue("InputLenslet_OffsetTop", float(array_offsets[0][0]))
-
-			self.sidebar.preprocessingTab.setValue("OutputLenslet_Width", int(round(lenslet_effective_size[1][0])))
-			self.sidebar.preprocessingTab.setValue("OutputLenslet_Height", int(round(lenslet_effective_size[0][0])))
+			self.sidebar.preprocessingTab.setValue("Low_DefectCorrection_DarkPixels", int(low_dark_th))
+			self.sidebar.preprocessingTab.setValue("Low_DefectCorrection_HotPixels", int(low_hot_th))
+			self.sidebar.preprocessingTab.setValue("High_DefectCorrection_DarkPixels", int(high_dark_th))
+			self.sidebar.preprocessingTab.setValue("High_DefectCorrection_HotPixels", int(high_hot_th))
 
 		except Exception as e:
 				
-			eprint("Error while performing auto-calibration: " + str(e))   
+			eprint("Error while performing automatic defect correction: " + str(e))   
 
 		finally:
+
+            # Disable buttons:
+			self.sidebar.reconstructionTab.button.setEnabled(True)
+			self.sidebar.preprocessingTab.btnApply.setEnabled(True)
+
 			# Restore mouse cursor:
 			QApplication.restoreOverrideCursor()
 

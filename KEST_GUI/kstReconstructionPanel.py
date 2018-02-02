@@ -130,7 +130,7 @@ class kstReconstructionPanel(QWidget):
 
 
 		item = self.variantManager.addProperty(QVariant.Int, "Actual projections")
-		item.setValue(1000) # To be modified according to the open sample
+		item.setValue(359) # To be modified according to the open sample
 		item.setAttribute("minimum", 1)
 		item.setAttribute("maximum", 99999)
 		item.setAttribute("singleStep", 1)
@@ -156,7 +156,7 @@ class kstReconstructionPanel(QWidget):
 			QtVariantPropertyManager.groupTypeId(), "Geometry")
 	
 		item = self.variantManager.addProperty(QVariant.Double, "Source-Sample [mm]")
-		item.setValue(50) # default
+		item.setValue(170) # default
 		item.setAttribute("singleStep", 0.1)
 		item.setAttribute("decimals", 1)
 		item.setAttribute("minimum", 0.1)
@@ -166,7 +166,7 @@ class kstReconstructionPanel(QWidget):
 		
 
 		item = self.variantManager.addProperty(QVariant.Double, "Source-Detector [mm]")
-		item.setValue(55) # default
+		item.setValue(240) # default
 		item.setAttribute("singleStep", 0.1)
 		item.setAttribute("decimals", 1)
 		item.setAttribute("minimum", 0.1)
@@ -189,7 +189,7 @@ class kstReconstructionPanel(QWidget):
 			QtVariantPropertyManager.groupTypeId(), "Detector Offsets")
 	
 		item = self.variantManager.addProperty(QVariant.Double, "Horizontal [pixel]")
-		item.setValue(0.0) # default
+		item.setValue(-49.0) # default
 		item.setAttribute("singleStep", 0.1)
 		item.setAttribute("decimals", 1)
 		item.setAttribute("minimum", -512.0)
