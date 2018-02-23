@@ -34,7 +34,7 @@ def read_pixirad_data (filename):
 	low  = data[:,:,::2]
 	high = data[:,:,1::2]	
 
-	return low, high
+	return low[:,:,::2], high[:,:,::2]
 
 def read_tiff_sequence (path):
 	"""Read a sequence of TIFF files as specified in the input path.

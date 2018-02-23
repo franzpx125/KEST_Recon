@@ -111,27 +111,30 @@ class ReadThread(QThread):
 
 class PreprocessThread(QThread):
 	
-	processDone = pyqtSignal(object, object, object, object) 
+	processDone = pyqtSignal(object, object, object, object, object, object, object, object, object, object) 
 	logOutput = pyqtSignal(object)         
 	error = pyqtSignal(object, object)         
 
-	def __init__(self, parent, low, high, sourceFile, low_dark_th, low_hot_th, \
-            high_dark_th, high_hot_th, method, rebinning, logTransform):
+	def __init__(self, parent, sourceFile, low_dark_th, low_hot_th, high_dark_th, \
+            high_hot_th, rebinning, flatfielding_window, despeckle_window, \
+            despeckle_thresh, output_low, output_high, output_diff, output_sum):
 		""" Class constructor.
 		"""
 		super(PreprocessThread, self).__init__(parent)
 
-		self.low = low.astype(numpy.float32)
-		self.high = high.astype(numpy.float32)
+		self.sourceFile = sourceFile		
 		self.low_dark_th = low_dark_th
 		self.low_hot_th = low_hot_th
 		self.high_dark_th = high_dark_th
 		self.high_hot_th = high_hot_th
-		self.method = method
 		self.rebinning = rebinning
-		self.logTransform = logTransform
-		self.sourceFile = sourceFile
-
+		self.flatfielding_window = flatfielding_window
+		self.despeckle_window = despeckle_window
+		self.despeckle_thresh = despeckle_thresh
+		self.output_low = output_low
+		self.output_high = output_high
+		self.output_diff = output_diff
+		self.output_sum = output_sum
 
 	def run(self):
 		""" Run the thread.
@@ -142,12 +145,15 @@ class PreprocessThread(QThread):
 			self.logOutput.emit('Performing pre-processing...')
 			
 			# Do the pre-processing:
-			low, high = pre_processing(self.low, self. high, self.sourceFile, self.low_dark_th, \
-				self.low_hot_th, self.high_dark_th, self.high_hot_th, self.method, \
-                self.rebinning, self.logTransform)		
+			low, high, diff, sum = pre_processing( self.sourceFile, self.low_dark_th, \
+				self.low_hot_th, self.high_dark_th, self.high_hot_th, self.rebinning, \
+                self.flatfielding_window, self.despeckle_window, self.despeckle_thresh, \
+                self.output_low, self.output_high, self.output_diff, self.output_sum )		
 
 			# At the end emit a signal with the outputs:
-			self.processDone.emit(low, high, self.sourceFile, PREPROC_TABLABEL)
+			self.processDone.emit( low, high, diff, sum, self.output_low, self.output_high, \
+                                    self.output_diff, self.output_sum, self.sourceFile, \
+                                    PREPROC_TABLABEL )
 
             # Log info:
 			t2 = timeit.default_timer()
@@ -160,20 +166,20 @@ class PreprocessThread(QThread):
 			self.error.emit('Error while performing pre-processing. ' + \
                 'Operation aborted.', str(e))
 
+
 class ReconThread(QThread):
 	
-	reconDone = pyqtSignal(object, object, object, object)      
+	reconDone = pyqtSignal(object, object, object)      
 	logOutput = pyqtSignal(object)         
 	error = pyqtSignal(object, object)     
 
-	def __init__(self, parent, low, high, sourceFile, angles, ssd, sdd, px, \
+	def __init__(self, parent, im, sourceFile, angles, ssd, sdd, px, \
             det_u, det_v, short_scan=False, method='FDK', iterations=1):
 		""" Class constructor.
 		"""
 		super(ReconThread, self).__init__(parent)
 
-		self.low = low.astype(numpy.float32)
-		self.high = high.astype(numpy.float32)
+		self.im = im.astype(numpy.float32)
 		self.angles = angles
 		self.ssd = ssd
 		self.sdd = sdd
@@ -190,28 +196,21 @@ class ReconThread(QThread):
 		""" Run the thread.
 		"""
 		try:
-			  # Log info:
+			# Log info:
 			t1 = timeit.default_timer()
 			self.logOutput.emit('Performing reconstruction...')
 			
 			# Do the reconstruction:
 			if (self.method == 'SIRT'):
-				low = recon_astra_sirt(self.low, self.angles, self.ssd, self.sdd - self.ssd, \
+				im = recon_astra_sirt(self.im, self.angles, self.ssd, self.sdd - self.ssd, \
 						self.px, self.det_u, self.det_v, iterations=self.iterations)  
-				
-				high = recon_astra_sirt(self.high, self.angles, self.ssd, self.sdd - self.ssd, \
-						self.px, self.det_u, self.det_v, iterations=self.iterations)
-				  
+								  
 			else: # default FDK       
-				low = recon_astra_fdk(self.low, self.angles, self.ssd, self.sdd - self.ssd, \
-						self.px, self.det_u, self.det_v, short_scan=self.short_scan)
-
-				high = recon_astra_fdk(self.high, self.angles, self.ssd, self.sdd - self.ssd, \
-						self.px, self.det_u, self.det_v, short_scan=self.short_scan)
-			
+				im = recon_astra_fdk(self.im, self.angles, self.ssd, self.sdd - self.ssd, \
+						self.px, self.det_u, self.det_v, short_scan=self.short_scan)			
 
 			# At the end emit a signal with the outputs:
-			self.reconDone.emit(low, high, self.sourceFile, RECON_TABLABEL)
+			self.reconDone.emit(im, self.sourceFile, RECON_TABLABEL)
 
 			# Log info:
 			t2 = timeit.default_timer()
@@ -278,7 +277,7 @@ class kstMainWindow(QMainWindow):
 		# Default size:
 		self.resize(1024,768)		
 		self.mainPanel.resize(int(round(self.width() * 0.75)), self.height())
-		self.mainPanel.doubleImageViewer.resize(self.width(), int(round(self.height() * 0.85)))
+		self.mainPanel.imagePanel.resize(self.width(), int(round(self.height() * 0.85)))
 
 
 	def __createMenus__(self):	
@@ -366,13 +365,13 @@ class kstMainWindow(QMainWindow):
 
 				# Read the file (on a separate thread):
 				self.readThread = ReadThread(self, filename)
-				self.readThread.readDone.connect(self.handleJobDone)
+				self.readThread.readDone.connect(self.readJobDone)
 				self.readThread.logOutput.connect(self.handleOutputLog)
 				self.readThread.error.connect(self.handleThreadError)
 				self.readThread.start()	
 
 				# Open the related HDF5 (if exists):
-				self.sidebar.hdfViewerTab.setHDF5File("C:\\Temp\\test.kest")		
+				#self.sidebar.hdfViewerTab.setHDF5File("C:\\Temp\\test.kest")		
 
 		except Exception as e:
 			eprint(str(e))
@@ -398,28 +397,33 @@ class kstMainWindow(QMainWindow):
 			self.sidebar.preprocessingTab.btnApply.setEnabled(False)
 
 			# Get current left image:
-			curr_left_tab = self.mainPanel.getCurrentLeftTab()
-			low = curr_left_tab.getData()
-			sourceFile = curr_left_tab.getSourceFile()
-
-			# Get current right image:
-			curr_right_tab = self.mainPanel.getCurrentRightTab()
-			high = curr_right_tab.getData()
+			curr_tab = self.mainPanel.getCurrentTab()
+			sourceFile = curr_tab.getSourceFile()
 
 			# Get params from UI:
 			low_dark_th = self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_DarkPixels")
 			low_hot_th = self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_HotPixels")
 			high_dark_th = self.sidebar.preprocessingTab.getValue("High_DefectCorrection_DarkPixels")
 			high_hot_th = self.sidebar.preprocessingTab.getValue("High_DefectCorrection_HotPixels")
+			
 			rebinning = self.sidebar.preprocessingTab.getValue("MatrixManipulation_Rebinning2x2")
-			method = self.sidebar.preprocessingTab.getValue("FlatFielding_Method")
-			logTransform = self.sidebar.preprocessingTab.getValue("FlatFielding_LogTransform")	
+			
+			flatfielding_window = self.sidebar.preprocessingTab.getValue("FlatFielding_Window")
+
+			despeckle_window = self.sidebar.preprocessingTab.getValue("Despeckle_Window")	
+			despeckle_thresh = self.sidebar.preprocessingTab.getValue("Despeckle_Threshold")	
+
+			output_low = self.sidebar.preprocessingTab.getValue("Output_LowEnergy")	
+			output_high = self.sidebar.preprocessingTab.getValue("Output_HighEnergy")
+			output_diff = self.sidebar.preprocessingTab.getValue("Output_LogSubtraction")	
+			output_sum = self.sidebar.preprocessingTab.getValue("Output_EnergyIntegration")
 
 			
 			# Call pre-processing (on a separate thread):
-			self.preprocessThread = PreprocessThread(self, low, high, sourceFile, low_dark_th, low_hot_th, \
-                low_dark_th, high_hot_th, method, rebinning, logTransform)
-			self.preprocessThread.processDone.connect(self.handleJobDone)            
+			self.preprocessThread = PreprocessThread(self, sourceFile, low_dark_th, low_hot_th, \
+                low_dark_th, high_hot_th, rebinning, flatfielding_window, despeckle_window, \
+                despeckle_thresh, output_low, output_high, output_diff, output_sum)
+			self.preprocessThread.processDone.connect(self.preprocessJobDone)            
 			self.preprocessThread.logOutput.connect(self.handleOutputLog)
 			self.preprocessThread.error.connect(self.handleThreadError)
 			self.preprocessThread.start()
@@ -448,13 +452,10 @@ class kstMainWindow(QMainWindow):
 			self.sidebar.preprocessingTab.btnApply.setEnabled(False)
 
 			# Get current left image:
-			curr_left_tab = self.mainPanel.getCurrentLeftTab()
-			low = curr_left_tab.getData()
-			sourceFile = curr_left_tab.getSourceFile()
+			curr_tab = self.mainPanel.getCurrentTab()
+			im = curr_tab.getData()
+			sourceFile = curr_tab.getSourceFile()
 
-			# Get current right image:
-			curr_right_tab = self.mainPanel.getCurrentRightTab()
-			high = curr_right_tab.getData()
 
 			# Get parameters from UI:
 			method = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Method")
@@ -471,8 +472,7 @@ class kstMainWindow(QMainWindow):
 			det_v = self.sidebar.reconstructionTab.getValue("Offsets_Detector-v")
 				
 			# Remove extra projections:
-			low = low[:,:,:nr_proj]
-			high = high[:,:,:nr_proj]
+			im = im[:,:,:nr_proj]
 
 			# Convert from degrees to radians:
 			angles = angles * numpy.pi / 180.0
@@ -481,10 +481,10 @@ class kstMainWindow(QMainWindow):
 			short_scan = False if (weights == 0) else True
 
 			# Call reconstruction (on a separate thread):
-			self.reconThread = ReconThread(self, low, high, sourceFile, angles, ssd, sdd, \
+			self.reconThread = ReconThread(self, im, sourceFile, angles, ssd, sdd, \
                 px, det_u, det_v, short_scan, method, iterations)
 
-			self.reconThread.reconDone.connect(self.handleJobDone)                        
+			self.reconThread.reconDone.connect(self.reconstructJobDone)                        
 			self.reconThread.logOutput.connect(self.handleOutputLog)
 			self.reconThread.error.connect(self.handleThreadError)
 			self.reconThread.start()	
@@ -500,20 +500,61 @@ class kstMainWindow(QMainWindow):
 
 		
 
-	def handleJobDone(self, low, high, sourceFile, type):
+	def readJobDone(self, low, high, sourceFile, type):
 		""" When a job thread has completed this function is called.
 		"""
 		
 		# Open a new tab in the image viewer with the output of reconstruction:
-		self.mainPanel.addLeftTab(low, sourceFile, str(os.path.basename(sourceFile)) \
+		self.mainPanel.addTab(low, sourceFile, str(os.path.basename(sourceFile)) \
 			+ " - " + type, type)
 	
-		self.mainPanel.addRightTab(high, sourceFile, str(os.path.basename(sourceFile)) \
+		self.mainPanel.addTab(high, sourceFile, str(os.path.basename(sourceFile)) \
 			+ " - " + type, type)
 
 		# Restore the reconstruction button:
 		self.sidebar.reconstructionTab.button.setEnabled(True) 
 		self.sidebar.preprocessingTab.btnApply.setEnabled(True) 
+
+	
+
+	def preprocessJobDone( self, low, high, diff, sum, output_low, output_high, \
+                           output_diff, output_sum, sourceFile, type ):
+		""" This function is called when the preprocessing job thread has completed.
+		"""
+		
+		# Open a new tab in the image viewer with the output of reconstruction:
+		if (output_low):
+			self.mainPanel.addTab(low, sourceFile, str(os.path.basename(sourceFile)) \
+				+ " - " + type, type)
+	
+		if (output_high):    
+			self.mainPanel.addTab(high, sourceFile, str(os.path.basename(sourceFile)) \
+				+ " - " + type, type)
+
+		if (output_diff):    
+			self.mainPanel.addTab(diff, sourceFile, str(os.path.basename(sourceFile)) \
+				+ " - " + type, type)
+		
+		if (output_sum):    
+			self.mainPanel.addTab(sum, sourceFile, str(os.path.basename(sourceFile)) \
+				+ " - " + type, type)
+
+		# Restore the reconstruction button:
+		self.sidebar.reconstructionTab.button.setEnabled(True) 
+		self.sidebar.preprocessingTab.btnApply.setEnabled(True) 
+
+
+	def reconstructJobDone(self, im, sourceFile, type):
+		""" This function is called when the preprocessing job thread has completed.
+		"""
+		
+		# Open a new tab in the image viewer with the output of reconstruction:
+		self.mainPanel.addTab(im, sourceFile, str(os.path.basename(sourceFile)) \
+				+ " - " + type, type)
+
+		# Restore the reconstruction button:
+		self.sidebar.reconstructionTab.button.setEnabled(True) 
+		self.sidebar.preprocessingTab.btnApply.setEnabled(True)
 
 
 	def closeEvent(self, event):
@@ -529,10 +570,12 @@ class kstMainWindow(QMainWindow):
 			event.ignore()
 
 
+
 	def exitApplication(self):
 		""" Close the application
 		"""
 		self.close()
+
 
 
 	def openImage(self, filename, key):
@@ -551,6 +594,7 @@ class kstMainWindow(QMainWindow):
 		self.mainPanel.addTab(im, filename,  \
 			str(os.path.basename(filename)) + " - " + RAW_TABLABEL \
 			+ " " + str(os.path.basename(key)), 'raw')
+
 
 
 	def applyAutoCalibration(self):

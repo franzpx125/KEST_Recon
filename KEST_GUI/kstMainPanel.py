@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QTextEdit, QSplitter, QTabWidget
 from PyQt5.QtGui import QIcon, QFont, QFontMetrics
 from PyQt5.QtCore import Qt
 
-from kstDoubleImageViewer import kstDoubleImageViewer
+from kstImagePanel import kstImagePanel
 from kstLogPanel import kstLogPanel
 
 class kstMainPanel(QWidget):    	
@@ -17,15 +17,15 @@ class kstMainPanel(QWidget):
 		"""
 		QWidget.__init__(self)								
 	
-		# Prepare the double image viewer:
-		self.doubleImageViewer = kstDoubleImageViewer()
+		# Prepare the image panel:
+		self.imagePanel = kstImagePanel()
 
 		# Prepare the log panel:
 		self.log = kstLogPanel()		
 		self.splitter = QSplitter(Qt.Vertical) 
 
 		# Configure the splitter:
-		self.splitter.addWidget(self.doubleImageViewer)
+		self.splitter.addWidget(self.imagePanel)
 		self.splitter.addWidget(self.log)
 
 		# Compose layout of the whole widget:
@@ -35,29 +35,43 @@ class kstMainPanel(QWidget):
 		self.setLayout(layout)
 
 
-	def addLeftTab(self, data, sourceFile, tabname, type):
+	def addTab(self, data, sourceFile, tabname, type):
 		
-		self.doubleImageViewer.addTab(data, sourceFile, tabname, type, position='left')
+		self.imagePanel.addTab(data, sourceFile, tabname, type)
 
-	def addRightTab(self, data, sourceFile, tabname, type):
+	def getCurrentTab(self):
+
+		return self.imagePanel.tabImageViewers.currentWidget()
+
+	def removeTab(self, idx):
+
+		self.imagePanel.removeTab(idx)
+
+
+
+	#def addLeftTab(self, data, sourceFile, tabname, type):
 		
-		self.doubleImageViewer.addTab(data, sourceFile, tabname, type, position='right')
+	#	self.doubleImageViewer.addTab(data, sourceFile, tabname, type, position='left')
+
+	#def addRightTab(self, data, sourceFile, tabname, type):
+		
+	#	self.doubleImageViewer.addTab(data, sourceFile, tabname, type, position='right')
 			
 
-	def getCurrentLeftTab(self):
+	#def getCurrentLeftTab(self):
 
-		return self.doubleImageViewer.tabLeftImageViewers.currentWidget()
+	#	return self.doubleImageViewer.tabLeftImageViewers.currentWidget()
 
-	def getCurrentRightTab(self):
+	#def getCurrentRightTab(self):
 
-		return self.doubleImageViewer.tabRightImageViewers.currentWidget()
+	#	return self.doubleImageViewer.tabRightImageViewers.currentWidget()
 
 
-	def removeLeftTab(self, idx):
+	#def removeLeftTab(self, idx):
 
-		self.doubleImageViewer.removeTabe(idx, position='left')
+	#	self.doubleImageViewer.removeTabe(idx, position='left')
 
-	def removeRightTab(self, idx):
+	#def removeRightTab(self, idx):
 
-		self.doubleImageViewer.removeTabe(idx, position='right')
+	#	self.doubleImageViewer.removeTabe(idx, position='right')
 

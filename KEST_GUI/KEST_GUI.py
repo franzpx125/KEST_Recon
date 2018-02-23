@@ -13,7 +13,7 @@ import kst_core.kst_preprocessing as kst_preprocessing
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import QTimer
 
-#from VoxImageViewer import VoxImageViewer
+#from kstImageViewer import kstImageViewer
 #from VoxImagePanel import VoxImagePanel
 #from VoxHDFViewer import VoxHDFViewer
 #from VoxSidebar import VoxSidebar
@@ -41,29 +41,87 @@ class Redirect(object):
 
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
 
-	low, high = kst_io.read_pixirad_data('J:\\KEST\\KEST_IUPESM2018\\1fps_27_33p2_I_50kV_1Al_NPISUM.dat')
-	for i in range(0, low.shape[2]):
-		imsave('C:\\Temp\\buttami\\low_' + str(i).zfill(4) + '.tif', low[:,:,i])
-	#flat_low, flat_high = kst_io.read_pixirad_data('C:\Temp\A_flat.dat')
-
-#	a,b = kst_remove_outliers.estimate_dead_hot(low)
-#	print(a)
-#	print(b)
-
-#	low, high = kst_preprocessing.pre_processing(low, high, 'C:\Temp\A.dat', a, \
-#				b, 0, False, True)
-#	#for i in range(0, low.shape[2]):
-#	#	if ( i == 300 ):
-#	#		imsave('C:\Temp\\buttami\\orig_' + str(i).zfill(4) + '.tif', low[:,:,i])
-#	#	low[:,:,i] = kst_remove_outliers.pixel_correction(low[:,:,i],a,b)
-#	#	if ( i == 300 ):
-#	#		imsave('C:\Temp\\buttami\\filt_' + str(i).zfill(4) + '.tif', low[:,:,i])
 	
+	
+#	#low, high = kst_io.read_pixirad_data('J:\\KEST\\KEST_IUPESM2018\\1fps_27_33p2_I_50kV_1Al_NPISUM.dat')
+#	#flat_low, flat_high = kst_io.read_pixirad_data('J:\\KEST\\KEST_IUPESM2018\\1fps_27_33p2_I_50kV_1Al_NPISUM_flat.dat')
+
+#	low, high = kst_io.read_pixirad_data('D:\\KEST\\2018_02_Circuit+PVC\\tomo_circuiti_1fps_40_50_65kv_2Al_NPISUM.dat')
+#	flat_low, flat_high = kst_io.read_pixirad_data('D:\\KEST\\2018_02_Circuit+PVC\\tomo_circuiti_1fps_40_50_65kv_2Al_NPISUM_flat.dat')
+
 
 #	for i in range(0, low.shape[2]):
-#		imsave('C:\Temp\\buttami\\low_' + str(i).zfill(4) + '.tif', low[:,:,i])
+#		low[:,:,i], _ = kst_remove_outliers.pixel_correction(low[:,:,i])
+#		high[:,:,i], _ = kst_remove_outliers.pixel_correction(high[:,:,i])
+	
+#	for i in range(0, flat_low.shape[2]):
+#		flat_low[:,:,i], _ = kst_remove_outliers.pixel_correction(flat_low[:,:,i])
+#		flat_high[:,:,i], _ = kst_remove_outliers.pixel_correction(flat_high[:,:,i])
+	
+#	sum = low + high
+#	sum_flat = flat_low + flat_high
+
+#	low = kst_flat_fielding.flat_fielding(low, flat_low)
+#	high = kst_flat_fielding.flat_fielding(high, flat_high)
+#	sum = kst_flat_fielding.flat_fielding(sum, sum_flat)	
+
+#	diff = numpy.log(high) - numpy.log(low)
+	
+#	for i in range(0, sum.shape[2]):
+#		imsave('D:\\Temp\\low\\tomo_' + str(i).zfill(4) + '.tif', low[:,:,i])
+#		imsave('D:\\Temp\\high\\tomo_' + str(i).zfill(4) + '.tif', high[:,:,i])
+#		imsave('D:\\Temp\\diff\\tomo_' + str(i).zfill(4) + '.tif', diff[:,:,i])
+#		imsave('D:\\Temp\\sum\\tomo_' + str(i).zfill(4) + '.tif', sum[:,:,i])
+
+
+#	for i in range(0, low.shape[2]):
+#		low[:,:,i] = kst_remove_outliers.despeckle_filter(low[:,:,i])
+#		high[:,:,i] = kst_remove_outliers.despeckle_filter(high[:,:,i])
+#		sum[:,:,i] = kst_remove_outliers.despeckle_filter(sum[:,:,i])
+		
+#	diff = numpy.log(high) - numpy.log(low)
+
+#	for i in range(0, sum.shape[2]):
+#		imsave('D:\\Temp\\low_filt\\tomo_' + str(i).zfill(4) + '.tif', low[:,:,i])
+#		imsave('D:\\Temp\\high_filt\\tomo_' + str(i).zfill(4) + '.tif', high[:,:,i])
+#		imsave('D:\\Temp\\diff_filt\\tomo_' + str(i).zfill(4) + '.tif', diff[:,:,i])
+#		imsave('D:\\Temp\\sum_filt\\tomo_' + str(i).zfill(4) + '.tif', sum[:,:,i])
+
+
+#	for i in range(0, low.shape[2]):
+#		low[:,:,i] = kst_remove_outliers.afterglow_correction(low[:,:,i])
+#		high[:,:,i] = kst_remove_outliers.afterglow_correction(high[:,:,i])
+#		sum[:,:,i] = kst_remove_outliers.afterglow_correction(sum[:,:,i])
+		
+#	diff = numpy.log(high) - numpy.log(low)
+
+#	for i in range(0, sum.shape[2]):
+#		imsave('D:\\Temp\\low_filt_filt\\tomo_' + str(i).zfill(4) + '.tif', low[:,:,i])
+#		imsave('D:\\Temp\\high_filt_filt\\tomo_' + str(i).zfill(4) + '.tif', high[:,:,i])
+#		imsave('D:\\Temp\\diff_filt_filt\\tomo_' + str(i).zfill(4) + '.tif', diff[:,:,i])
+#		imsave('D:\\Temp\\sum_filt_filt\\tomo_' + str(i).zfill(4) + '.tif', sum[:,:,i])
+
+#	a,b = kst_remove_outliers.estimate_dead_hot(low)
+#	c,d = kst_remove_outliers.estimate_dead_hot(high)
+
+#	low, high = kst_preprocessing.pre_processing(low, high, 'J:\\KEST\\KEST_IUPESM2018\\1fps_27_33p2_I_50kV_1Al_NPISUM.dat', a, \
+#				b, c, d, 0, False, True)
+
+#	#a,b = kst_remove_outliers.estimate_dead_hot(flat_low)
+#	#c,d = kst_remove_outliers.estimate_dead_hot(flat_high)
+#	#flat_low, flat_high = kst_preprocessing.pre_processing(flat_low, flat_high, 'J:\\KEST\\KEST_IUPESM2018\\1fps_27_33p2_I_50kV_1Al_NPISUM.dat', a, \
+#	#			b, c, d, 0, False, True)
+
+#	for i in range(0, low.shape[2]):
+#	    imsave('C:\\Temp\\NPISUM\\low\\tomo_' + str(i).zfill(4) + '.tif', low[:,:,i])
+	
+#	for i in range(0, high.shape[2]):
+#		imsave('C:\\Temp\\NPISUM\\high\\tomo_' + str(i).zfill(4) + '.tif', high[:,:,i])
+	
+
+
 
 
 	#Flow  = kst_io.read_tiff_sequence('J:\\TestDatasets_CWI\\D_conebeam\\projections_0.25\\tomo*.tif')
@@ -174,20 +232,20 @@ if __name__ == '__main__':
 	#	imsave('J:\\KEST\\MisureNovembrePisa\\DATA\\TestDFF\\diff\\tomo_' + str(i).zfill(4) + '.tif', diff[:,:,i].astype(numpy.float32))
 
 
-#if __name__ == '__main__':
+if __name__ == '__main__':
 
-#	# Create the application:
-#	app = QApplication(sys.argv)
+	# Create the application:
+	app = QApplication(sys.argv)
 
-#    # Init main window:
-#	mainWindow = kstMainWindow()
+    # Init main window:
+	mainWindow = kstMainWindow()
 
-#	# Redirect print() and errors:
-#	sys.stdout = Redirect(mainWindow.mainPanel.log.outputLog)
-#	sys.stderr = Redirect(mainWindow.mainPanel.log.errorLog)
+	# Redirect print() and errors:
+	sys.stdout = Redirect(mainWindow.mainPanel.log.outputLog)
+	sys.stderr = Redirect(mainWindow.mainPanel.log.errorLog)
 
-#	# Run application:
-#	mainWindow.show()
-#	t = QTimer()
-#	t.singleShot(0,mainWindow.onQApplicationStarted)
-#	sys.exit(app.exec_())
+	# Run application:
+	mainWindow.show()
+	t = QTimer()
+	t.singleShot(0,mainWindow.onQApplicationStarted)
+	sys.exit(app.exec_())

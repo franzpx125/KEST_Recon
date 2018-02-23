@@ -26,12 +26,6 @@ from QtProperty.qtgroupboxpropertybrowser import QtGroupBoxPropertyBrowser
 
 class kstPreprocessingPanel(QWidget):
 
-    # Available flat-fielding algorithms:
-	flatfielding_methods = ('conventional', 'dynamic')
-
-    # Defect correction methods:
-	defectcorrection_methods = ('automatic', 'manual')
-
     # Event raised when the user wants to perform the pre-processing:
 	preprocessingRequestedEvent = pyqtSignal()
 
@@ -87,22 +81,13 @@ class kstPreprocessingPanel(QWidget):
         # Configuration of the properties manager:
 		self.defectCorrectionItem = self.variantManager.addProperty(\
             QtVariantPropertyManager.groupTypeId(), "Defect correction")
-
-		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
-		enumNames = QList()
-		for method in kstPreprocessingPanel.defectcorrection_methods:  
-			enumNames.append(method)
-		item.setAttribute("enumNames", enumNames)
-		item.setValue(0) # default: "conventional"
-		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "DefectCorrection_Method")
-	
+		
 		item = self.variantManager.addProperty(QVariant.Int, "Low - Dark threshold")
 		item.setValue(0) # default for dead pixels
 		item.setAttribute("minimum", 0)
 		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
-		item.setEnabled(False) # default
+		item.setEnabled(True) # default
 		self.defectCorrectionItem.addSubProperty(item)        
 		self.addProperty(item, "Low_DefectCorrection_DarkPixels")
 
@@ -111,7 +96,7 @@ class kstPreprocessingPanel(QWidget):
 		item.setAttribute("minimum", 0)
 		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
-		item.setEnabled(False) # default
+		item.setEnabled(True) # default
 		self.defectCorrectionItem.addSubProperty(item)        
 		self.addProperty(item, "Low_DefectCorrection_HotPixels")
 
@@ -120,7 +105,7 @@ class kstPreprocessingPanel(QWidget):
 		item.setAttribute("minimum", 0)
 		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
-		item.setEnabled(False) # default
+		item.setEnabled(True) # default
 		self.defectCorrectionItem.addSubProperty(item)        
 		self.addProperty(item, "High_DefectCorrection_DarkPixels")
 
@@ -129,7 +114,7 @@ class kstPreprocessingPanel(QWidget):
 		item.setAttribute("minimum", 0)
 		item.setAttribute("maximum", 65535)
 		item.setAttribute("singleStep", 1)
-		item.setEnabled(False) # default
+		item.setEnabled(True) # default
 		self.defectCorrectionItem.addSubProperty(item)        
 		self.addProperty(item, "High_DefectCorrection_HotPixels")
 
@@ -147,24 +132,67 @@ class kstPreprocessingPanel(QWidget):
 		self.flatFieldingItem = self.variantManager.addProperty(\
 		QtVariantPropertyManager.groupTypeId(), "Flat Fielding")
 	
-		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Method")
-		enumNames = QList()
-		for method in kstPreprocessingPanel.flatfielding_methods:  
-			enumNames.append(method)
-		item.setAttribute("enumNames", enumNames)
-		item.setValue(0) # default: "conventional"
+		item = self.variantManager.addProperty(QVariant.Int, "Window")
+		item.setValue(5) # default for dead pixels
+		item.setAttribute("minimum", 3)
+		item.setAttribute("maximum", 11)
+		item.setAttribute("singleStep", 2)
+		item.setEnabled(True) # default
 		self.flatFieldingItem.addSubProperty(item)        
-		self.addProperty(item, "FlatFielding_Method")
+		self.addProperty(item, "FlatFielding_Window")
 
-		item = self.variantManager.addProperty(QVariant.Bool, "Log transform")
+
+		self.despeckleItem = self.variantManager.addProperty(\
+		QtVariantPropertyManager.groupTypeId(), "Despeckle")
+	
+		item = self.variantManager.addProperty(QVariant.Double, "Threshold")
+		item.setValue(0.1) # default for dead pixels
+		item.setAttribute("minimum", 0.0)
+		item.setAttribute("maximum", 1.0)
+		item.setAttribute("singleStep", 0.1)
+		item.setEnabled(True) # default
+		self.despeckleItem.addSubProperty(item)        
+		self.addProperty(item, "Despeckle_Threshold")
+
+		item = self.variantManager.addProperty(QVariant.Int, "Window")
+		item.setValue(5) # default for dead pixels
+		item.setAttribute("minimum", 3)
+		item.setAttribute("maximum", 11)
+		item.setAttribute("singleStep", 2)
+		item.setEnabled(True) # default
+		self.despeckleItem.addSubProperty(item)        
+		self.addProperty(item, "Despeckle_Window")
+
+
+		self.outputItem = self.variantManager.addProperty(\
+		QtVariantPropertyManager.groupTypeId(), "Output")
+	
+		item = self.variantManager.addProperty(QVariant.Bool, "Low energy")
+		item.setValue(False) # default
+		self.outputItem.addSubProperty(item)        
+		self.addProperty(item, "Output_LowEnergy")
+
+		item = self.variantManager.addProperty(QVariant.Bool, "High energy")
+		item.setValue(False) # default
+		self.outputItem.addSubProperty(item)        
+		self.addProperty(item, "Output_HighEnergy")
+
+		item = self.variantManager.addProperty(QVariant.Bool, "Log subtraction")
 		item.setValue(True) # default
-		self.flatFieldingItem.addSubProperty(item)        
-		self.addProperty(item, "FlatFielding_LogTransform")
+		self.outputItem.addSubProperty(item)        
+		self.addProperty(item, "Output_LogSubtraction")
+
+		item = self.variantManager.addProperty(QVariant.Bool, "Energy integration")
+		item.setValue(True) # default
+		self.outputItem.addSubProperty(item)        
+		self.addProperty(item, "Output_EnergyIntegration")
 
 			
 		self.variantEditor.addProperty(self.defectCorrectionItem)
 		self.variantEditor.addProperty(self.matrixManipulationItem)
 		self.variantEditor.addProperty(self.flatFieldingItem)
+		self.variantEditor.addProperty(self.despeckleItem)
+		self.variantEditor.addProperty(self.outputItem)
 
 
 		if isinstance(self.variantEditor, QtTreePropertyBrowser):

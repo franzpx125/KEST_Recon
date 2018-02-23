@@ -9,7 +9,6 @@ from PyQt5.QtCore import Qt, QRectF, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap, QPainterPath, QWheelEvent
 from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QFrame
 
-
 class _kstImagePanel(QGraphicsView):
 	""" PyQt image viewer widget
 
@@ -162,9 +161,11 @@ class _kstImagePanel(QGraphicsView):
 		else:
 			self.imageFormat = 'int'
 
-		# Find min/max from input image as numpy array:
-		self.winMin = np.amin(self.npImage.astype(np.float32))
-		self.winMax = np.amax(self.npImage.astype(np.float32))
+		# Find min/max from input image as numpy array:        
+		#self.winMin = np.amin(self.npImage.astype(np.float32))
+		#self.winMax = np.amax(self.npImage.astype(np.float32))
+		self.winMin = np.percentile(self.npImage.astype(np.float32), 0.02)
+		self.winMax = np.percentile(self.npImage.astype(np.float32), 100 - 0.03)
 		 
 		# Update the UI with a resetted LUT:
 		self._updateImageLUT()    
@@ -417,8 +418,10 @@ class _kstImagePanel(QGraphicsView):
 			
 				# Reset window/level:
 				if self.npImage is not None:
-					self.winMin = np.amin(self.npImage.astype(np.float32))
-					self.winMax = np.amax(self.npImage.astype(np.float32))
+					#self.winMin = np.amin(self.npImage.astype(np.float32))
+					#self.winMax = np.amax(self.npImage.astype(np.float32))
+					self.winMin = np.percentile(self.npImage.astype(np.float32), 0.02)
+					self.winMax = np.percentile(self.npImage.astype(np.float32), 100 - 0.03)
 
 					self._updateImageLUT()
 		

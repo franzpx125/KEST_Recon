@@ -8,6 +8,8 @@ from PyQt5.QtCore import Qt
 from kstUtils import eprint
 from _kstImagePanel import _kstImagePanel
 
+import tifffile
+
 dir = os.path.dirname(os.path.realpath(__file__))
 PAN_ZOOM_ICON = dir + "/resources/btnDrag.png"
 PAN_ZOOM_TOOLTIP = "Pan (Mouse Left)"
@@ -25,7 +27,10 @@ ZOOM_RESET_ICON = dir + "/resources/btnFitToScreen.png"
 ZOOM_RESET_TOOLTIP = "Zoom Fit (Mouse Double Click Left)"
 
 EXPORT_ICON = dir + "/resources/btnExport.png"
-EXPORT_TOOLTIP = "Save as TIFF"
+EXPORT_TOOLTIP = "Save as TIFF..."
+
+EXPORTALL_ICON = dir + "/resources/btnExport.png"
+EXPORTALL_TOOLTIP = "Save as TIFF sequence..."
 
 class kstImageViewer(QWidget):
 
@@ -46,11 +51,36 @@ class kstImageViewer(QWidget):
 		# Properties:
 		self.__sourceFile = sourceFile			
 		
-		# Toolbar:
-		self.toolBar = QToolBar()
-		toolbarSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)        
-		self.toolBar.setSizePolicy(toolbarSizePolicy)
-			
+		# Top toolbar:
+		self.topToolBar = QToolBar()
+		self._createTopToolbar()
+
+		# Bottom toolbar:
+		self.bottomToolBar = QToolBar()
+		self._createBottomToolbar()	
+
+		# Handle mouse hover with custom slot:
+		self.imagePanel.mouseHoverEvent.connect(self._handleMouseHover)
+
+		# Compose layout of the whole widget:
+		layout = QVBoxLayout()	
+		layout.addWidget(self.topToolBar)
+		layout.addWidget(self.imagePanel)
+		layout.addWidget(self.bottomToolBar)	
+		layout.setContentsMargins(0,0,0,0)	
+		self.setLayout(layout)
+		self.setContentsMargins(0,0,0,0)	
+
+		# Set image:
+		self.__setImage(image)
+
+
+
+	def _createTopToolbar(self):
+		"""
+        """
+		topToolbarSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)        
+		self.topToolBar.setSizePolicy(topToolbarSizePolicy)
 
 		#pan_zoom = QAction(QIcon(dir + "/resources/btnDrag.png"),"Pan (Mouse
 		#Left)",self)
@@ -67,7 +97,7 @@ class kstImageViewer(QWidget):
 		self._panZoom.setCheckable(True)
 		self._panZoom.setChecked(True)
 		self._panZoom.clicked.connect(self._panZoomSwitch)
-		self.toolBar.addWidget(self._panZoom)
+		self.topToolBar.addWidget(self._panZoom)
 
 		self._zoomSelect = QToolButton(self)
 		self._zoomSelect.setIcon(QIcon(ZOOM_SELECT_ICON))
@@ -75,82 +105,86 @@ class kstImageViewer(QWidget):
 		self._zoomSelect.setCheckable(True)
 		self._zoomSelect.setChecked(False)
 		self._zoomSelect.clicked.connect(self._zoomSelectSwitch)
-		self.toolBar.addWidget(self._zoomSelect)
+		self.topToolBar.addWidget(self._zoomSelect)
 
-		self.toolBar.addSeparator()
+		self.topToolBar.addSeparator()
 
 		zoomIn = QAction(QIcon(ZOOM_IN_ICON),ZOOM_IN_TOOLTIP,self)        
-		self.toolBar.addAction(zoomIn)
+		self.topToolBar.addAction(zoomIn)
 		zoomOut = QAction(QIcon(ZOOM_OUT_ICON),ZOOM_OUT_TOOLTIP,self)        
-		self.toolBar.addAction(zoomOut)
+		self.topToolBar.addAction(zoomOut)
 		zoomReset = QAction(QIcon(ZOOM_RESET_ICON),ZOOM_RESET_TOOLTIP,self)        
-		self.toolBar.addAction(zoomReset)
+		self.topToolBar.addAction(zoomReset)
 
-		self.toolBar.addSeparator()
+		self.topToolBar.addSeparator()
 
-		# Combo box for the 4 "views" of a light-field image:
-		self.lblLightField = QLabel(" View: ")   # Use spaces		
-		self.lblLightFieldAction = self.toolBar.addWidget(self.lblLightField)	
-		self.lblLightFieldAction.setVisible(False)	
+		# Separator:
+		#self.fooWidget = QWidget()
+		#self.fooWidget.setFixedWidth(6)
+		#self.fooWidgetAction = self.topToolBar.addWidget(self.fooWidget)
 
-		self.cbxLightField = QComboBox()
-		#for mode in vox.lightfield.VoxLightfield.available_modes:
-		#	self.cbxLightField.addItem(mode)
-		self.cbxLightFieldAction = self.toolBar.addWidget(self.cbxLightField)	
-		self.cbxLightFieldAction.setVisible(False)	
-
-		# Slider for the refocusing:
-		self.lblSlider = QLabel(" Images: ") # Use spaces
-		self.lblSliderAction = self.toolBar.addWidget(self.lblSlider)		
-		
-		self.sldDataset = QSlider(Qt.Horizontal) 
-		self.sldDataset.setFixedWidth(150)
-		self.sldDataset.setFocusPolicy(Qt.StrongFocus)
-		self.sldDataset.setTickPosition(QSlider.TicksBelow)
-		self.sldDatasetAction = self.toolBar.addWidget(self.sldDataset)		
-		self.sldDataset.valueChanged.connect(self.changeDatasetView)
-
-        # Separator:
-		self.fooWidget = QWidget()
-		self.fooWidget.setFixedWidth(6)
-		self.fooWidgetAction = self.toolBar.addWidget(self.fooWidget)
-
-		self.extraSeparatorAction = self.toolBar.addSeparator()
+		#self.extraSeparatorAction = self.topToolBar.addSeparator()
 
 		export = QAction(QIcon(EXPORT_ICON),EXPORT_TOOLTIP,self)        
-		self.toolBar.addAction(export)
+		self.topToolBar.addAction(export)
+
+		exportAll = QAction(QIcon(EXPORTALL_ICON),EXPORTALL_TOOLTIP,self)        
+		self.topToolBar.addAction(exportAll)
 								
 		# Spacer:
 		spacer = QWidget()
 		spacerSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)   
 		spacer.setSizePolicy(spacerSizePolicy)
-		self.toolBar.addWidget(spacer)
+		self.topToolBar.addWidget(spacer)
 		
 		# Label on the right:
 		self.hoverLabel = QLabel(self)
 		self.hoverLabel.setText("")
-		self.toolBar.addWidget(self.hoverLabel) 
+		self.topToolBar.addWidget(self.hoverLabel) 
 			
 
 		# Connect handler for toolbar buttons:
-		self.toolBar.actionTriggered[QAction].connect(self._toolBarBtnPressed)
-
-	
-
-		# Handle mouse hover with custom slot:
-		self.imagePanel.mouseHoverEvent.connect(self._handleMouseHover)
-
-		# Compose layout of the whole widget:
-		layout = QVBoxLayout()	
-		layout.addWidget(self.toolBar)
-		layout.addWidget(self.imagePanel)	
-		layout.setContentsMargins(0,0,0,0)	
-		self.setLayout(layout)
-		self.setContentsMargins(0,0,0,0)	
+		self.topToolBar.actionTriggered[QAction].connect(self._toolBarBtnPressed)
 
 
-		# Set image:
-		self.__setImage(image)
+
+
+	def _createBottomToolbar(self):
+		"""
+		"""
+		
+		bottomToolbarSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)        
+		self.bottomToolBar.setSizePolicy(bottomToolbarSizePolicy)		
+
+
+		# Combo box for the 4 "views" of a light-field image:
+		self.lblLightField = QLabel(" View: ")   # Use spaces		
+		self.lblLightFieldAction = self.bottomToolBar.addWidget(self.lblLightField)	
+		self.lblLightFieldAction.setVisible(False)	
+
+		self.cbxLightField = QComboBox()
+		self.cbxLightFieldAction = self.bottomToolBar.addWidget(self.cbxLightField)	
+		self.cbxLightFieldAction.setVisible(False)	
+
+		self.indexLabel = QLabel(self)
+		self.indexLabel.setText("")
+		self.bottomToolBar.addWidget(self.indexLabel) 
+
+
+		# Slider for the refocusing:
+		self.lblSlider = QLabel(" Images: ") # Use spaces
+		self.lblSliderAction = self.bottomToolBar.addWidget(self.lblSlider)		
+		
+		self.sldDataset = QSlider(Qt.Horizontal) 
+		self.sldDataset.setFixedWidth(150)
+		self.sldDataset.setFocusPolicy(Qt.StrongFocus)
+		self.sldDataset.setTickPosition(QSlider.TicksBelow)
+		self.sldDatasetAction = self.bottomToolBar.addWidget(self.sldDataset)		
+		self.sldDataset.valueChanged.connect(self.changeDatasetView)
+
+		# Spacer:
+		#self.bottomToolBar.addWidget(spacer)
+			
 
 	#def drawBackground(self, painter, rect):
 
@@ -192,6 +226,26 @@ class kstImageViewer(QWidget):
 			except Exception as e:
 				eprint(str(e))
 
+		elif button.text() == EXPORTALL_TOOLTIP:
+
+			# Open a Save As dialog:
+			try:
+				options = QFileDialog.Options()
+				options |= QFileDialog.DontUseNativeDialog
+				folder = QFileDialog.getExistingDirectory(self, "Select Folder for TIFF sequence")
+				
+				if folder:
+				
+					for i in range(0,self.__data.shape[2]):
+		
+                        # Prepare filename:
+						filename = os.path.join(folder, "image_" + "{:04d}".format(i) + ".tif")
+
+						# Save as TIFF with tiffile library:
+						tifffile.imsave(filename, data=self.__data[:,:,i])
+
+			except Exception as e:
+				eprint(str(e))
 			
 
 
@@ -221,29 +275,32 @@ class kstImageViewer(QWidget):
 			self.cbxLightFieldAction.setVisible(False)
 			self.lblSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
-			self.fooWidgetAction.setVisible(True)
-			self.extraSeparatorAction.setVisible(True)
+			#self.fooWidgetAction.setVisible(True)
+			#self.extraSeparatorAction.setVisible(True)
 
 		elif (self.__imageType == 'pre-processed'):
 			self.lblLightFieldAction.setVisible(False)
 			self.cbxLightFieldAction.setVisible(False)
 			self.lblSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
-			self.fooWidgetAction.setVisible(True)
-			self.extraSeparatorAction.setVisible(True)
+			#self.fooWidgetAction.setVisible(True)
+			#self.extraSeparatorAction.setVisible(True)
 
 		elif (self.__imageType == 'reconstructed'):
 			self.lblLightFieldAction.setVisible(False)
 			self.cbxLightFieldAction.setVisible(False)
 			self.lblSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
-			self.fooWidgetAction.setVisible(True)
-			self.extraSeparatorAction.setVisible(True)
+			#self.fooWidgetAction.setVisible(True)
+			#self.extraSeparatorAction.setVisible(True)
 
 		# Set dimension of the slider and default:
 		self.sldDataset.setMinimum(0)
 		self.sldDataset.setMaximum(self.__data.shape[2]-1)
 		self.sldDataset.setValue(round(self.__data.shape[2]/2))
+
+		self.indexLabel.setText(str(round(self.__data.shape[2]/2)) \
+			+ "/" + str(round(self.__data.shape[2])))
 
 
 	def changeDatasetView(self):
@@ -254,6 +311,9 @@ class kstImageViewer(QWidget):
 
 		# Change to the new numpy image:
 		self.imagePanel.changeImage(self.__data[:,:,val])
+
+		# Set the index:
+		self.indexLabel.setText(str(val) + "/" + str(round(self.__data.shape[2])))
 			
 
 	def getType(self):

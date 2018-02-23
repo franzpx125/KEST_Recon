@@ -2,6 +2,7 @@ from numpy import float32, linspace, transpose, roll
 
 import astra
 
+
 def recon_astra_fdk(proj, angles, ssd, sdd, pixel_size, offset_u, offset_v, short_scan=False):
 	"""Reconstruct the input dataset by using the FDK implemented in ASTRA toolbox.
 
@@ -89,6 +90,8 @@ def recon_astra_fdk(proj, angles, ssd, sdd, pixel_size, offset_u, offset_v, shor
 	
     # Return:
 	return rec
+
+
 
 def recon_astra_sirt(proj, angles, ssd, sdd, pixel_size, offset_u, offset_v, iterations=100):
 	"""Reconstruct the input dataset by using the SIRT3D implemented in ASTRA toolbox.
