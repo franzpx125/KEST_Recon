@@ -29,7 +29,7 @@ class kstImagePanel(QWidget):
 		self.setLayout(layout)
 
 
-	def addTab(self, data, sourceFile, tabname, type):
+	def addTab(self, data, sourceFile, tabname, type, mode):
 		""" Add a new tab with the specified input.
 			NOTE: input could be a:
 				- 'raw' image (i.e. a 2D raster image ready to be displayed)
@@ -42,7 +42,7 @@ class kstImagePanel(QWidget):
 		im = data[:,:,round(data.shape[2] / 2)]
 
 		# Create the image viewer:
-		imageViewer = kstImageViewer(sourceFile, data, type, im)
+		imageViewer = kstImageViewer(sourceFile, data, type, im, mode)
 
 		# Set value of the refocusing slider (even if it might be hidden):
 		imageViewer.sldDataset.setMinimum(0)

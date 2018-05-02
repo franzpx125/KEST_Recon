@@ -41,8 +41,11 @@ from QtProperty.qteditorfactory import (
 
 class kstReconstructionPanel(QWidget):
 
+    # Available reconstruction algorithms:
+	geometry_type = ('cone-beam', 'parallel-beam')
+
 	# Available reconstruction algorithms:
-	reconstruction_methods = ('FDK', 'SIRT', 'CGLS')
+	reconstruction_methods = ('FDK / FBP', 'SIRT')
 
     # Available reconstruction weighting methods:
 	weighting_methods = ('cosine (full 360°)', 'Parker')
@@ -154,6 +157,15 @@ class kstReconstructionPanel(QWidget):
 	
 		self.geometryItem = self.variantManager.addProperty(\
 			QtVariantPropertyManager.groupTypeId(), "Geometry")
+
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Type")
+		enumNames = QList()
+		for method in kstReconstructionPanel.geometry_type:  
+			enumNames.append(method)
+		item.setAttribute("enumNames", enumNames)
+		item.setValue(0) # default: "FDK"
+		self.geometryItem.addSubProperty(item)        
+		self.addProperty(item, "Geometry_Type")
 	
 		item = self.variantManager.addProperty(QVariant.Double, "Source-Sample [mm]")
 		item.setValue(170) # default
@@ -214,9 +226,9 @@ class kstReconstructionPanel(QWidget):
 		self.variantEditor = QtTreePropertyBrowser()
 
 		self.variantEditor.setFactoryForManager(self.variantManager, self.variantFactory)
-		self.variantEditor.addProperty(self.methodItem)		
-		self.variantEditor.addProperty(self.anglesItem)
 		self.variantEditor.addProperty(self.geometryItem)
+		self.variantEditor.addProperty(self.methodItem)		
+		self.variantEditor.addProperty(self.anglesItem)		
 		self.variantEditor.addProperty(self.offsetItem)
 		self.variantEditor.addProperty(self.paddingItem)
 
@@ -247,22 +259,53 @@ class kstReconstructionPanel(QWidget):
 		if (not self.propertyToId.contains(property)):
 			return
 		
+        # Get the iterations and weights properties:
+		pIter = self.idToProperty["ReconstructionAlgorithm_Iterations"] 
+		pWeig = self.idToProperty["ReconstructionAlgorithm_Weights"] 
+
+
         # Get the related property:
 		id = self.propertyToId[property]
 
         # Enable/disable iterations property:
-		if (id == "ReconstructionAlgorithm_Method"):
-
-			# Get the iterations property:
-			pIter = self.idToProperty["ReconstructionAlgorithm_Iterations"] 
-			pWeig = self.idToProperty["ReconstructionAlgorithm_Weights"] 
+		if (id == "ReconstructionAlgorithm_Method"):			
 
 			# Enable or disable it:
-			if (value == 0): 
+			if (value == 0): # FDK / FBP
 				pIter.setEnabled(False)
-				pWeig.setEnabled(True)
+				if (self.getValue("Geometry_Type") == 'cone-beam'): 
+					pWeig.setEnabled(True)
+				else:
+					pWeig.setEnabled(False)
 			else:
 				pIter.setEnabled(True)
+				pWeig.setEnabled(False)
+
+        # Enable/disable iterations property:
+		if (id == "Geometry_Type"):
+
+			# Get the iterations property:
+			gSSD = self.idToProperty["Geometry_Source-Sample"] 
+			gSDD = self.idToProperty["Geometry_Source-Detector"] 
+			gPS = self.idToProperty["Geometry_DetectorPixelSize"] 
+
+			# Enable or disable it:
+			if (value == 0): # cone-beam
+				gSSD.setEnabled(True)
+				gSDD.setEnabled(True)
+				gPS.setEnabled(True)
+
+				if (self.getValue("ReconstructionAlgorithm_Method") == 'FDK / FBP'):
+					pIter.setEnabled(False)
+					pWeig.setEnabled(True)
+				else:
+					pIter.setEnabled(True)
+					pWeig.setEnabled(False)
+
+			else:
+				gSSD.setEnabled(False)
+				gSDD.setEnabled(False)
+				gPS.setEnabled(False)
 				pWeig.setEnabled(False)
 
 
@@ -279,9 +322,13 @@ class kstReconstructionPanel(QWidget):
 		# Return a string for the combo boxes:
 		if (id == "ReconstructionAlgorithm_Method"):				
 			return kstReconstructionPanel.reconstruction_methods[val]
+
+		elif (id == "Geometry_Type"):				
+			return kstReconstructionPanel.geometry_type[val]	
+
+		elif (id == "ReconstructionAlgorithm_Weights"):				
+			return kstReconstructionPanel.weighting_methods[val]			
 			
-		elif (id == "ReconstructionAlgorithm_PaddingMethod"):				
-			return self.paddingTypes[val]			
 
 		# All the other cases:
 		return val

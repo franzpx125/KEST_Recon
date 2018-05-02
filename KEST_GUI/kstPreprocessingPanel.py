@@ -77,6 +77,46 @@ class kstPreprocessingPanel(QWidget):
 		spacer.setSizePolicy(spacerSizePolicy)
 
 
+                # Configuration of the properties manager:
+		self.cropItem = self.variantManager.addProperty(\
+            QtVariantPropertyManager.groupTypeId(), "Crop")
+		
+		item = self.variantManager.addProperty(QVariant.Int, "Top")
+		item.setValue(0) # default for dead pixels
+		item.setAttribute("minimum", 0)
+		item.setAttribute("maximum", 402)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(True) # default
+		self.cropItem.addSubProperty(item)        
+		self.addProperty(item, "Crop_Top")
+
+		item = self.variantManager.addProperty(QVariant.Int, "Bottom")
+		item.setValue(0) # default for hot pixels
+		item.setAttribute("minimum", 0)
+		item.setAttribute("maximum", 402)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(True) # default
+		self.cropItem.addSubProperty(item)        
+		self.addProperty(item, "Crop_Bottom")
+
+		item = self.variantManager.addProperty(QVariant.Int, "Left")
+		item.setValue(0) # default for dead pixels
+		item.setAttribute("minimum", 0)
+		item.setAttribute("maximum", 512)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(True) # default
+		self.cropItem.addSubProperty(item)        
+		self.addProperty(item, "Crop_Left")
+
+		item = self.variantManager.addProperty(QVariant.Int, "Right")
+		item.setValue(0) # default for hot pixels
+		item.setAttribute("minimum", 0)
+		item.setAttribute("maximum", 512)
+		item.setAttribute("singleStep", 1)
+		item.setEnabled(True) # default
+		self.cropItem.addSubProperty(item)        
+		self.addProperty(item, "Crop_Right")
+
 	
         # Configuration of the properties manager:
 		self.defectCorrectionItem = self.variantManager.addProperty(\
@@ -187,7 +227,8 @@ class kstPreprocessingPanel(QWidget):
 		self.outputItem.addSubProperty(item)        
 		self.addProperty(item, "Output_EnergyIntegration")
 
-			
+		
+		self.variantEditor.addProperty(self.cropItem)	
 		self.variantEditor.addProperty(self.defectCorrectionItem)
 		self.variantEditor.addProperty(self.matrixManipulationItem)
 		self.variantEditor.addProperty(self.flatFieldingItem)

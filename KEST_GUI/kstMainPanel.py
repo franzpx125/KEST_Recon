@@ -35,9 +35,9 @@ class kstMainPanel(QWidget):
 		self.setLayout(layout)
 
 
-	def addTab(self, data, sourceFile, tabname, type):
+	def addTab(self, data, sourceFile, tabname, type, mode='2COL'):
 		
-		self.imagePanel.addTab(data, sourceFile, tabname, type)
+		self.imagePanel.addTab(data, sourceFile, tabname, type, mode)
 
 	def getCurrentTab(self):
 

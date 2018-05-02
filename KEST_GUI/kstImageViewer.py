@@ -34,13 +34,16 @@ EXPORTALL_TOOLTIP = "Save as TIFF sequence..."
 
 class kstImageViewer(QWidget):
 
-	def __init__(self, sourceFile, data, type, image):
+	def __init__(self, sourceFile, data, type, image, mode):
 		""" Class constructor.
 		"""
 		QWidget.__init__(self)
 
 		# Initialize image panel:
 		self.imagePanel = _kstImagePanel()
+
+		# Set original mode:
+		self.__originalMode = mode
 
 		# Set the type of image with respect of the lightfield pipeline:        
 		self.__imageType = type      # 'raw', 'lightfield', 'refocused', 'depth_map'
@@ -232,13 +235,14 @@ class kstImageViewer(QWidget):
 			try:
 				options = QFileDialog.Options()
 				options |= QFileDialog.DontUseNativeDialog
+				options |= QFileDialog.DirectoryOnly
 				folder = QFileDialog.getExistingDirectory(self, "Select Folder for TIFF sequence")
-				
-				if folder:
+
+				if folder: 			
 				
 					for i in range(0,self.__data.shape[2]):
 		
-                        # Prepare filename:
+						# Prepare filename:
 						filename = os.path.join(folder, "image_" + "{:04d}".format(i) + ".tif")
 
 						# Save as TIFF with tiffile library:
@@ -322,6 +326,14 @@ class kstImageViewer(QWidget):
 
 		# Set the new numpy image:
 		return self.__imageType
+
+
+	def getOriginalMode(self):
+		""" Get the original mode (2COL or 1COL).
+		"""
+
+		# Set the new numpy image:
+		return self.__originalMode
 
 
 	def getSourceFile(self):

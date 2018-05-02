@@ -42,19 +42,25 @@ def pixel_correction(im, dead_th=0, hot_th=65535):
 	msk_f = msk.flatten()	
 
 	# Correct for NaNs, Infs, dead, hot:
-	val, x = logical_or.reduce((isnan(im_f), isinf(im_f), (im_f <= dead_th), \
-		(im_f >= hot_th))), lambda z: z.nonzero()[0]
-	im_f[val] = interp(x(val), x(~val), im_f[~val])
-	msk_f = logical_or(msk_f, val)
+	try:
+		val, x = logical_or.reduce((isnan(im_f), isinf(im_f), (im_f <= dead_th), \
+			(im_f >= hot_th))), lambda z: z.nonzero()[0]
+		im_f[val] = interp(x(val), x(~val), im_f[~val])
+		msk_f = logical_or(msk_f, val)
 
-	# Reshape:
-	im_f = reshape(im_f, (im.shape[1], im.shape[0]), order='F')
-	msk_f = reshape(msk_f, (msk.shape[1], msk.shape[0]), order='F')
-	im_f = im_f.T
-	msk_f = msk_f.T
+	except:
+		pass
+	
+	finally:
+
+	    # Reshape:
+	    im_f = reshape(im_f, (im.shape[1], im.shape[0]), order='F')
+	    msk_f = reshape(msk_f, (msk.shape[1], msk.shape[0]), order='F')
+	    im_f = im_f.T
+	    msk_f = msk_f.T
 
 	# Re-cast and return:
-	return im.astype(t), msk 
+	return im_f.astype(t), msk_f 
 
 
 def estimate_dead_hot(im, perc_dead=0.1, perc_hot=0.1):
