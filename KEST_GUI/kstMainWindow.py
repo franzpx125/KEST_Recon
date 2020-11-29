@@ -1,10 +1,12 @@
-import sys
+﻿import sys
 import os.path 
 import h5py
 import numpy
 import platform
 import psutil
 import timeit
+
+from multiprocessing import Process, Lock, cpu_count
 
 from tifffile import imread, imsave # debug
 from PyQt5.QtWidgets import QMainWindow, QAction, QHBoxLayout, QToolBox, QSizePolicy, QMessageBox
@@ -16,14 +18,15 @@ from kstImageViewer import kstImageViewer
 from kstMainPanel import kstMainPanel
 from kstSidebar import kstSidebar
 from kstUtils import eprint
+from kstDataset import kstDataset
 
 from kst_core.kst_preprocessing import pre_processing
-from kst_core.kst_io import read_pixirad_data
-from kst_core.kst_reconstruction import recon_astra_fdk, recon_astra_sirt_cone
+from kst_core.kst_io import read_pixirad_data, read_pixirad_stepgo
+from kst_core.kst_reconstruction import recon_tigre_fdk, recon_astra_sirt_cone
 from kst_core.kst_reconstruction import recon_astra_fbp, recon_astra_sirt_parallel
-from kst_core.kst_remove_outliers import estimate_dead_hot
+from kst_core.kst_reconstruction import correct_dataset
 
-SW_TITLE = "KEST Recon - v. 0.3 alpha"
+SW_TITLE = "KEST Recon 0.5 alpha"
 SW_QUIT_MSG = "This will close the application. Are you sure?"
 RAW_TABLABEL = "raw"
 PREPROC_TABLABEL = "preprocessed"
@@ -70,7 +73,7 @@ class StatThread(QThread):
 
 class ReadThread(QThread):
 	
-	readDone = pyqtSignal(object, object, object, object, object, object) 
+	readDone = pyqtSignal(object, object) 
 	logOutput = pyqtSignal(object)         
 	error = pyqtSignal(object, object)
 
@@ -93,12 +96,37 @@ class ReadThread(QThread):
 			t1 = timeit.default_timer()
 			self.logOutput.emit('Opening: ' + self.filename + '...')
 
+            # Open the flat image by manipulating the orig filename (or
+            # directory name):
+			name, ext = os.path.splitext(self.filename)
+			flat_filename = name + '_flat' + ext
+
+			flat_low = None
+			flat_high = None
+
 			# Load the file (high might be None):
-			low, high = read_pixirad_data(self.filename, self.mode)
+			if (os.path.isfile(self.filename)):
+				low, high = read_pixirad_data(self.filename, self.mode)
+
+				# Read flat low and high (if they exist):
+				if (os.path.isfile(flat_filename)):					
+					flat_low, flat_high = read_pixirad_data(flat_filename, self.mode)
+
+			else:
+
+				#low, high = read_pixirad_stepgo_test(self.filename, self.mode)
+				low, high = read_pixirad_stepgo(self.filename, self.mode)
+
+				# Read flat low and high (if they exist):
+				if ( os.path.isdir(flat_filename) ):					
+					#flat_low, flat_high = read_pixirad_stepgo_test(flat_filename, self.mode)
+					flat_low, flat_high = read_pixirad_stepgo(flat_filename, self.mode)
 	
+			# Prepare the current KEST dataset:
+			curr_dset = kstDataset(low, high, flat_low, flat_high, self.mode, self.is_sequence, self.filename)
+
 			# At the end emit a signal with the outputs:
-			self.readDone.emit(low, high, self.filename, self.mode, \
-                self.is_sequence, RAW_TABLABEL)
+			self.readDone.emit(curr_dset, RAW_TABLABEL)
 
 			# Log info:
 			t2 = timeit.default_timer()
@@ -111,8 +139,6 @@ class ReadThread(QThread):
 			self.error.emit('Error while reading ' + self.filename + \
                 '. Operation aborted.', str(e))			
 
-		
-
 class PreprocessThread(QThread):
 	
 	processDone = pyqtSignal(object, object, object, object, object, object, object, \
@@ -120,22 +146,17 @@ class PreprocessThread(QThread):
 	logOutput = pyqtSignal(object)         
 	error = pyqtSignal(object, object)         
 
-	def __init__(self, parent, sourceFile, low_dark_th, low_hot_th, high_dark_th, \
-            high_hot_th, rebinning, flatfielding_window, despeckle_window, \
+	def __init__(self, parent, dset, rebinning, flatfielding_window, \
             despeckle_thresh, output_low, output_high, output_diff, output_sum, \
-            mode, crop_top, crop_bottom, crop_left, crop_right ):
+            mode, crop_top, crop_bottom, crop_left, crop_right, proj_avg_mode, \
+            proj_avg_alpha  ):
 		""" Class constructor.
 		"""
 		super(PreprocessThread, self).__init__(parent)
 
-		self.sourceFile = sourceFile		
-		self.low_dark_th = low_dark_th
-		self.low_hot_th = low_hot_th
-		self.high_dark_th = high_dark_th
-		self.high_hot_th = high_hot_th
+		self.dset = dset
 		self.rebinning = rebinning
 		self.flatfielding_window = flatfielding_window
-		self.despeckle_window = despeckle_window
 		self.despeckle_thresh = despeckle_thresh
 		self.output_low = output_low
 		self.output_high = output_high
@@ -143,6 +164,8 @@ class PreprocessThread(QThread):
 		self.output_sum = output_sum
 		self.mode = mode
 		self.crop = [ crop_top, crop_bottom, crop_left, crop_right ]
+		self.proj_avg_mode = proj_avg_mode
+		self.proj_avg_alpha = proj_avg_alpha
 
 	def run(self):
 		""" Run the thread.
@@ -152,19 +175,31 @@ class PreprocessThread(QThread):
 			t1 = timeit.default_timer()
 			self.logOutput.emit('Performing pre-processing...')
 			
-			# Do the pre-processing:
-			low, high, diff, sum = pre_processing( self.sourceFile, self.low_dark_th, \
-				self.low_hot_th, self.high_dark_th, self.high_hot_th, self.rebinning, \
-                self.flatfielding_window, self.despeckle_window, self.despeckle_thresh, \
-                self.output_low, self.output_high, self.output_diff, self.output_sum, \
-                self.mode, self.crop )		
+            # Prepare outputs:
+			#siz = (self.dset.low.shape[0] - (self.crop[0] + self.crop[1]), \
+			#		 self.dset.low.shape[1] - (self.crop[2] + self.crop[3]), \
+			#		 self.dset.low.shape[2])
+			#if (self.output_low):
+			#	out_low = numpy.zeros( siz, dtype=self.dset.low.dtype )
+			#if (self.output_high):
+			#	out_high = numpy.zeros( siz, dtype=self.dset.low.dtype)
+			#if (self.output_diff):
+			#	out_diff = numpy.zeros( siz, dtype=self.dset.low.dtype)
+			#if (self.output_sum):
+			#	out_sum = numpy.zeros( siz, dtype=self.dset.low.dtype)
+
+			# Start the single process:
+			low, high, diff, sum = pre_processing(self.dset, self.rebinning, \
+					self.flatfielding_window, self.despeckle_thresh, self.output_low, \
+					self.output_high, self.output_diff, self.output_sum, self.mode, self.crop, \
+                    self.proj_avg_mode, self.proj_avg_alpha, 0 )				
 
 			# At the end emit a signal with the outputs:
-			self.processDone.emit( low, high, diff, sum, self.output_low, self.output_high, \
-                                    self.output_diff, self.output_sum, self.sourceFile, \
-                                    PREPROC_TABLABEL, self.mode )
+			self.processDone.emit( low, high, diff, sum, self.output_low, \
+									self.output_high, self.output_diff, self.output_sum, \
+									self.dset.source_file, PREPROC_TABLABEL, self.mode )
 
-            # Log info:
+			# Log info:
 			t2 = timeit.default_timer()
 			self.logOutput.emit('Pre-processing performed succesfully in ' + \
 				'{:.3f}'.format(t2 - t1) + ' sec.')
@@ -175,7 +210,6 @@ class PreprocessThread(QThread):
 			self.error.emit('Error while performing pre-processing. ' + \
                 'Operation aborted.', str(e))
 
-
 class ReconThread(QThread):
 	
 	reconDone = pyqtSignal(object, object, object, object)      
@@ -184,7 +218,8 @@ class ReconThread(QThread):
 
 	def __init__(self, parent, im, sourceFile, angles, geometry, ssd, sdd, \
             px, det_u, det_v, short_scan=False, method='FDK / FBP', \
-            iterations=1, mode='2COL'):
+            iterations=1, mode='2COL', overpadding=False, angles_shift=0, \
+            roll=0.0, pitch=0.0, yaw=0.0):
 		""" Class constructor.
 		"""
 		super(ReconThread, self).__init__(parent)
@@ -202,6 +237,11 @@ class ReconThread(QThread):
 		self.iterations = iterations
 		self.short_scan = short_scan
 		self.mode = mode
+		self.overpadding = overpadding
+		self.angles_shift = angles_shift
+		self.roll = roll
+		self.pitch = pitch
+		self.yaw = yaw
 
 	def run(self):
 		""" Run the thread.
@@ -209,27 +249,45 @@ class ReconThread(QThread):
 		try:
 			# Log info:
 			t1 = timeit.default_timer()
-			self.logOutput.emit('Performing reconstruction...')
+			self.logOutput.emit('Performing reconstruction...')		
 			
-			if (self.geometry == 'parallel-beam'):
-                # Do the reconstruction:
+			# Correct dataset for overpadding:
+			if (self.overpadding):
+				val = int(round(self.im.shape[1] /4))				
+				self.im = numpy.pad(self.im, ((0,0), (val, val), (0,0)), 'edge')	
+			
+			if (self.geometry == 'parallel-beam'):			
+				
+                #self.im, val = correct_dataset(self.im, self.det_u, 0, self.overpadding)
+
+				# Do the reconstruction:
 				if (self.method == 'SIRT'):
-					rec = recon_astra_sirt_parallel(self.im, self.angles, self.det_u, \
-                        self.iterations)  
+					rec = recon_astra_sirt_parallel(self.im, self.angles, self.iterations, self.angles_shift)  
 								  
 				else: # default FBP       
-					rec = recon_astra_fbp(self.im, self.angles, self.det_u)
+					rec = recon_astra_fbp(self.im, self.angles, self.angles_shift)
 			
 			else:    
+
+				# Correct dataset:
+				#self.im, val = correct_dataset(self.im, self.det_u, self.det_v, self.overpadding)
 
 				# Do the reconstruction:
 				if (self.method == 'SIRT'):
 					rec = recon_astra_sirt_cone(self.im, self.angles, self.ssd, self.sdd - self.ssd, \
-							self.px, self.det_u, self.det_v, self.iterations)  
+							self.px, self.iterations, self.angles_shift)  
 								  
 				else: # default FDK       
-					rec = recon_astra_fdk(self.im, self.angles, self.ssd, self.sdd - self.ssd, \
-							self.px, self.det_u, self.det_v, self.short_scan)			
+					rec = recon_tigre_fdk(self.im, self.ssd, self.sdd - self.ssd, self.px, self.angles, \
+                            self.angles_shift, self.det_u, self.det_v, self.roll, self.pitch, 
+                            self.yaw, self.short_scan, self.overpadding, 'ram-lak')
+					#rec = recon_astra_fdk(self.im, self.angles, self.ssd, self.sdd - self.ssd, \
+					#		self.px, self.short_scan, self.overpadding, self.angles_shift)			
+
+			# Crop if overpadding:
+			if (self.overpadding):
+				rec = rec[val:-val, val:-val,:] 
+
 
 			# At the end emit a signal with the outputs:
 			self.reconDone.emit(rec, self.sourceFile, RECON_TABLABEL, self.mode)
@@ -243,7 +301,6 @@ class ReconThread(QThread):
 			# Log error:
 			self.error.emit('Error while performing reconstruction. ' + \
 				'Operation aborted.', str(e))
-
 
 
 class kstMainWindow(QMainWindow):
@@ -271,7 +328,7 @@ class kstMainWindow(QMainWindow):
 		# Create progress bar:
 		#self.pb = QProgressBar(self.statusBar())
 		#self.statusBar().addPermanentWidget(self.pb)
-
+		self.dset = None
 							
 		# Add the widgets to the panel:
 		self.sidebar = kstSidebar()
@@ -281,7 +338,6 @@ class kstMainWindow(QMainWindow):
 		# Configure the sidebar:
 		self.sidebar.hdfViewerTab.openImageDataEvent.connect(self.openImage)
 		self.sidebar.preprocessingTab.preprocessingRequestedEvent.connect(self.applyPreprocessing)
-		self.sidebar.preprocessingTab.calibrateRequestedEvent.connect(self.applyAutoCalibration)
 		self.sidebar.reconstructionTab.recostructionRequestedEvent.connect(self.applyReconstruction)
 
 
@@ -365,7 +421,7 @@ class kstMainWindow(QMainWindow):
 			self.mainPanel.log.logOutput(val)
 
 			# Read settings:
-			self.read_settings()
+			#self.read_settings()
 
 		except Exception as e:
 			eprint(str(e))
@@ -395,7 +451,7 @@ class kstMainWindow(QMainWindow):
 		self.sidebar.preprocessingTab.btnApply.setEnabled(True)
 
 
-	def openFile(self, mode):
+	def __openFile(self, mode):
 		""" Called when user wants to open a new KEST file.
 			NOTE: a thread is started when this function is invoked.
 		"""
@@ -418,9 +474,7 @@ class kstMainWindow(QMainWindow):
 				self.readThread.logOutput.connect(self.handleOutputLog)
 				self.readThread.error.connect(self.handleThreadError)
 				self.readThread.start()	
-
-				# Open the related HDF5 (if exists):
-				#self.sidebar.hdfViewerTab.setHDF5File("C:\\Temp\\test.kest")		
+					
 
 		except Exception as e:
 			eprint(str(e))
@@ -430,12 +484,36 @@ class kstMainWindow(QMainWindow):
 			self.sidebar.preprocessingTab.btnApply.setEnabled(True) 		
 
 	def openFile1COL(self):
-		self.openFile('1COL')
+
+		nr_tabs = self.mainPanel.imagePanel.tabImageViewers.count()
+		if (nr_tabs > 0):        
+			reply = QMessageBox.question(self, SW_TITLE, 
+					 "This will close all the image tabs. Are you sure?",
+					 QMessageBox.Yes, QMessageBox.No)
+
+			if (reply == QMessageBox.Yes):
+				for i in range(0,nr_tabs):
+					self.mainPanel.imagePanel.tabImageViewers.removeTab(0)
+				self.__openFile('1COL')
+		else:
+			self.__openFile('1COL')
+
 
 	def openFile2COL(self):
-		self.openFile('2COL')
+		nr_tabs = self.mainPanel.imagePanel.tabImageViewers.count()
+		if (nr_tabs > 0):        
+			reply = QMessageBox.question(self, SW_TITLE, 
+					 "This will close all the image tabs. Are you sure?",
+					 QMessageBox.Yes, QMessageBox.No)
 
-	def openFolder(self, mode):
+			if (reply == QMessageBox.Yes):
+				for i in range(0,nr_tabs):
+					self.mainPanel.imagePanel.tabImageViewers.removeTab(0)
+				self.__openFile('2COL')
+		else:
+			self.__openFile('2COL')
+
+	def __openFolder(self, mode):
 		""" Called when user wants to open a sequence of KEST files.
 			NOTE: a thread is started when this function is invoked.
 		"""
@@ -471,10 +549,35 @@ class kstMainWindow(QMainWindow):
 			self.sidebar.preprocessingTab.btnApply.setEnabled(True)
 
 	def openFolder1COL(self):
-		self.openFolder('1COL')
+		
+		nr_tabs = self.mainPanel.imagePanel.tabImageViewers.count()
+		if (nr_tabs > 0):        
+			reply = QMessageBox.question(self, SW_TITLE, 
+					 "This will close all the image tabs. Are you sure?",
+					 QMessageBox.Yes, QMessageBox.No)
+
+			if (reply == QMessageBox.Yes):
+				for i in range(0,nr_tabs):
+					self.mainPanel.imagePanel.tabImageViewers.removeTab(0)
+				self.__openFolder('1COL')
+		else:
+			self.__openFolder('1COL')		
+		
 
 	def openFolder2COL(self):
-		self.openFolder('2COL')
+		nr_tabs = self.mainPanel.imagePanel.tabImageViewers.count()
+		if (nr_tabs > 0):        
+			reply = QMessageBox.question(self, SW_TITLE, 
+					 "This will close all the image tabs. Are you sure?",
+					 QMessageBox.Yes, QMessageBox.No)
+
+			if (reply == QMessageBox.Yes):
+				for i in range(0,nr_tabs):
+					self.mainPanel.imagePanel.tabImageViewers.removeTab(0)
+				self.__openFolder('2COL')
+		else:
+			self.__openFolder('2COL')
+
 
 	def applyPreprocessing(self):
 		""" Called when user wants to apply the preprocessing on current image.
@@ -499,32 +602,39 @@ class kstMainWindow(QMainWindow):
 			crop_left = self.sidebar.preprocessingTab.getValue("Crop_Left")
 			crop_right = self.sidebar.preprocessingTab.getValue("Crop_Right")
 
-			low_dark_th = self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_DarkPixels")
-			low_hot_th = self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_HotPixels")
-			high_dark_th = self.sidebar.preprocessingTab.getValue("High_DefectCorrection_DarkPixels")
-			high_hot_th = self.sidebar.preprocessingTab.getValue("High_DefectCorrection_HotPixels")
+			proj_avg_mode = self.sidebar.preprocessingTab.getValue("ProjectionAveraging_Mode")
+			proj_avg_alpha = self.sidebar.preprocessingTab.getValue("ProjectionAveraging_AlphaTrimmed")
 			
 			rebinning = self.sidebar.preprocessingTab.getValue("MatrixManipulation_Rebinning2x2")
 			
 			flatfielding_window = self.sidebar.preprocessingTab.getValue("FlatFielding_Window")
 
-			despeckle_window = self.sidebar.preprocessingTab.getValue("Despeckle_Window")	
 			despeckle_thresh = self.sidebar.preprocessingTab.getValue("Despeckle_Threshold")	
+			ringremoval_thresh = self.sidebar.preprocessingTab.getValue("RingRemoval_Threshold")
 
 			output_low = self.sidebar.preprocessingTab.getValue("Output_LowEnergy")	
 			output_high = self.sidebar.preprocessingTab.getValue("Output_HighEnergy")
 			output_diff = self.sidebar.preprocessingTab.getValue("Output_LogSubtraction")	
 			output_sum = self.sidebar.preprocessingTab.getValue("Output_EnergyIntegration")            
 			
-			# Call pre-processing (on a separate thread):
-			self.preprocessThread = PreprocessThread(self, sourceFile, low_dark_th, low_hot_th, \
-				low_dark_th, high_hot_th, rebinning, flatfielding_window, despeckle_window, \
-				despeckle_thresh, output_low, output_high, output_diff, output_sum, mode, \
-                crop_top, crop_bottom, crop_left, crop_right)
-			self.preprocessThread.processDone.connect(self.preprocessJobDone)            
-			self.preprocessThread.logOutput.connect(self.handleOutputLog)
-			self.preprocessThread.error.connect(self.handleThreadError)
-			self.preprocessThread.start()
+			## Call pre-processing (on a separate thread):
+			#self.preprocessThread = PreprocessThread(self, self.dset, rebinning, \
+   #             flatfielding_window, despeckle_thresh, output_low, output_high, \
+   #             output_diff, output_sum, mode, crop_top, crop_bottom, crop_left, \
+   #             crop_right, proj_avg_mode, proj_avg_alpha )
+			#self.preprocessThread.processDone.connect(self.preprocessJobDone)            
+			#self.preprocessThread.logOutput.connect(self.handleOutputLog)
+			#self.preprocessThread.error.connect(self.handleThreadError)
+			#self.preprocessThread.start()
+			
+			# For debug:
+			low, high, diff, sum = pre_processing(self.dset, rebinning, \
+					flatfielding_window, despeckle_thresh, output_low, \
+					output_high, output_diff, output_sum, mode, \
+					[crop_top, crop_bottom, crop_left, crop_right], \
+                    proj_avg_mode, proj_avg_alpha, ringremoval_thresh )
+			self.preprocessJobDone( low, high, diff, sum, output_low, output_high, \
+						   output_diff, output_sum, sourceFile, PREPROC_TABLABEL, mode )
 
 		except Exception as e:
 				
@@ -559,35 +669,51 @@ class kstMainWindow(QMainWindow):
 			# Get parameters from UI:
 			method = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Method")
 			iterations = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Iterations")
+			filter = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_FDK-Filter")
 			weights = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Weights")
 			angles = self.sidebar.reconstructionTab.getValue("Reconstruction_Angles")
+			angles_shift = self.sidebar.reconstructionTab.getValue("Reconstruction_Angles_Shift")
+			angles_decimation = self.sidebar.reconstructionTab.getValue("Reconstruction_Angles_Decimation")
 			nr_proj = self.sidebar.reconstructionTab.getValue("Reconstruction_Projections")
 			upsampling = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Upsampling")
 			overpadding = self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Overpadding")
 			geometry = self.sidebar.reconstructionTab.getValue("Geometry_Type")
-			ssd = self.sidebar.reconstructionTab.getValue("Geometry_Source-Sample")
-			sdd = self.sidebar.reconstructionTab.getValue("Geometry_Source-Detector")
-			px = self.sidebar.reconstructionTab.getValue("Geometry_DetectorPixelSize")
-			det_u = self.sidebar.reconstructionTab.getValue("Offsets_Detector-u")
-			det_v = self.sidebar.reconstructionTab.getValue("Offsets_Detector-v")
+			ssd = float(self.sidebar.reconstructionTab.getValue("Geometry_Source-Sample"))
+			sdd = float(self.sidebar.reconstructionTab.getValue("Geometry_Source-Detector"))
+			px = float(self.sidebar.reconstructionTab.getValue("Geometry_DetectorPixelSize"))
+			det_u = float(self.sidebar.reconstructionTab.getValue("Offsets_Detector-u"))
+			det_v = float(self.sidebar.reconstructionTab.getValue("Offsets_Detector-v"))
+			roll = float(self.sidebar.reconstructionTab.getValue("Offsets_Detector-Roll"))
+			pitch = float(self.sidebar.reconstructionTab.getValue("Offsets_Detector-Pitch"))
+			yaw = float(self.sidebar.reconstructionTab.getValue("Offsets_Detector-Yaw"))
 				
 			# Remove extra projections:
 			im = im[:,:,:nr_proj]
+			im = im[:,:,::angles_decimation]
 
 			# Convert from degrees to radians:
 			angles = angles * numpy.pi / 180.0
+			angles_shift = angles_shift * numpy.pi / 180.0
 
 			# Convert to boolean for short_scan:
 			short_scan = False if (weights == 0) else True
 
 			# Call reconstruction (on a separate thread):
 			self.reconThread = ReconThread(self, im, sourceFile, angles, geometry, \
-                ssd, sdd, px, det_u, det_v, short_scan, method, iterations, mode)
+                ssd, sdd, px, det_u, det_v, short_scan, method, iterations, mode, \
+                overpadding, angles_shift )
 
 			self.reconThread.reconDone.connect(self.reconstructJobDone)                        
 			self.reconThread.logOutput.connect(self.handleOutputLog)
 			self.reconThread.error.connect(self.handleThreadError)
 			self.reconThread.start()	
+
+			# Only for debug:			
+			#rec = recon_tigre_fdk(im, ssd, sdd - ssd, px, angles, \
+			#	angles_shift, det_u, det_v, roll, pitch, 
+			#	yaw, short_scan, overpadding, filter)
+			#self.reconstructJobDone(rec, sourceFile, RECON_TABLABEL, mode)			
+
 
 		except Exception as e:
 				
@@ -600,17 +726,19 @@ class kstMainWindow(QMainWindow):
 
 		
 
-	def readJobDone(self, low, high, sourceFile, mode, is_sequence, type):
+	def readJobDone(self, dset, type):
 		""" When a job thread has completed this function is called.
 		"""
+		# Assign to current instance:
+		self.dset = dset
 		
 		# Open a new tab in the image viewer with the output of reconstruction:
-		self.mainPanel.addTab(low, sourceFile, str(os.path.basename(sourceFile)) \
-			+ " - " + type, type, mode)
+		self.mainPanel.addTab(dset.low, dset.source_file, str(os.path.basename(dset.source_file)) \
+			+ " - " + type, type, dset.mode)
 	
-		if high is not None:
-			self.mainPanel.addTab(high, sourceFile, str(os.path.basename(sourceFile)) \
-				+ " - " + type, type, mode)
+		if dset.high is not None:
+			self.mainPanel.addTab(dset.high, dset.source_file, str(os.path.basename(dset.source_file)) \
+				+ " - " + type, type, dset.mode)
 
 		else:
             # Leave only "low" as True but everything deactivated:
@@ -634,6 +762,14 @@ class kstMainWindow(QMainWindow):
 		self.sidebar.reconstructionTab.button.setEnabled(True) 
 		self.sidebar.preprocessingTab.btnApply.setEnabled(True) 
 
+		# Open also the flat images (if present):
+		if dset.flat_low is not None:
+			self.mainPanel.addTab(dset.flat_low, dset.source_file, str(os.path.basename(dset.source_file)) \
+				+ " - " + type, type, dset.mode)
+
+		if dset.flat_high is not None:
+			self.mainPanel.addTab(dset.flat_high, dset.source_file, str(os.path.basename(dset.source_file)) \
+				+ " - " + type, type, dset.mode)
 	
 
 	def preprocessJobDone( self, low, high, diff, sum, output_low, output_high, \
@@ -717,51 +853,6 @@ class kstMainWindow(QMainWindow):
 
 
 
-	def applyAutoCalibration(self):
-		""" Called when user wants to apply the auto-calibration on current image.
-			NOTE: the current image should be a 'raw' image. The UI should avoid
-				  to let this method callable when current image is not a 'raw'.
-		"""
-		try:
-			# Set mouse wait cursor:
-			QApplication.setOverrideCursor(Qt.WaitCursor)
-
-			# Disable buttons:
-			self.sidebar.reconstructionTab.button.setEnabled(False)
-			self.sidebar.preprocessingTab.btnApply.setEnabled(False)
-
-			# Get current left image:
-			curr_left_tab = self.mainPanel.getCurrentLeftTab()
-			low = curr_left_tab.getData()
-			sourceFile = curr_left_tab.getSourceFile()
-
-			# Get current right image:
-			curr_right_tab = self.mainPanel.getCurrentRightTab()
-			high = curr_right_tab.getData()
-
-			# Call automatic dark/hot isolation:
-			low_dark_th, low_hot_th = estimate_dead_hot(low)
-			high_dark_th, high_hot_th = estimate_dead_hot(high)
-
-			# Fill the UI properties with the values:
-			self.sidebar.preprocessingTab.setValue("Low_DefectCorrection_DarkPixels", int(low_dark_th))
-			self.sidebar.preprocessingTab.setValue("Low_DefectCorrection_HotPixels", int(low_hot_th))
-			self.sidebar.preprocessingTab.setValue("High_DefectCorrection_DarkPixels", int(high_dark_th))
-			self.sidebar.preprocessingTab.setValue("High_DefectCorrection_HotPixels", int(high_hot_th))
-
-		except Exception as e:
-				
-			eprint("Error while performing automatic defect correction: " + str(e))   
-
-		finally:
-
-            # Disable buttons:
-			self.sidebar.reconstructionTab.button.setEnabled(True)
-			self.sidebar.preprocessingTab.btnApply.setEnabled(True)
-
-			# Restore mouse cursor:
-			QApplication.restoreOverrideCursor()
-
 	def write_settings(self):
 		""" Save UI settings to disk.
 
@@ -785,14 +876,10 @@ class kstMainWindow(QMainWindow):
 		settings.setValue("Crop_Right", \
 			self.sidebar.preprocessingTab.getValue("Crop_Right"))
 
-		settings.setValue("Low_DefectCorrection_DarkPixels", \
-			self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_DarkPixels"))
-		settings.setValue("Low_DefectCorrection_HotPixels", \
-			self.sidebar.preprocessingTab.getValue("Low_DefectCorrection_HotPixels"))
-		settings.setValue("High_DefectCorrection_DarkPixels", \
-			self.sidebar.preprocessingTab.getValue("High_DefectCorrection_DarkPixels"))
-		settings.setValue("High_DefectCorrection_HotPixels", \
-			self.sidebar.preprocessingTab.getValue("High_DefectCorrection_HotPixels"))
+		settings.setValue("ProjectionAveraging_Mode", \
+			self.sidebar.preprocessingTab.getValue("ProjectionAveraging_Mode")) 
+		settings.setValue("ProjectionAveraging_AlphaTrimmed", \
+			self.sidebar.preprocessingTab.getValue("ProjectionAveraging_AlphaTrimmed"))   
 
 		settings.setValue("MatrixManipulation_Rebinning2x2", \
 			self.sidebar.preprocessingTab.getValue("MatrixManipulation_Rebinning2x2"))  
@@ -802,8 +889,9 @@ class kstMainWindow(QMainWindow):
 
 		settings.setValue("Despeckle_Threshold", \
 			self.sidebar.preprocessingTab.getValue("Despeckle_Threshold"))  
-		settings.setValue("Despeckle_Window", \
-			self.sidebar.preprocessingTab.getValue("Despeckle_Window"))  
+
+		settings.setValue("RingRemoval_Threshold", \
+			self.sidebar.preprocessingTab.getValue("RingRemoval_Threshold"))  
 
 		settings.setValue("Output_LowEnergy", \
 			self.sidebar.preprocessingTab.getValue("Output_LowEnergy"))  
@@ -831,6 +919,8 @@ class kstMainWindow(QMainWindow):
 
 		settings.setValue("ReconstructionAlgorithm_Method", \
 			self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Method"))
+		settings.setValue("ReconstructionAlgorithm_FDK-Filter", \
+			self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_FDK-Filter"))
 		settings.setValue("ReconstructionAlgorithm_Iterations", \
 			self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Iterations"))
 		settings.setValue("ReconstructionAlgorithm_Weights", \
@@ -845,6 +935,12 @@ class kstMainWindow(QMainWindow):
 			self.sidebar.reconstructionTab.getValue("Offsets_Detector-u"))
 		settings.setValue("Offsets_Detector-v", \
 			self.sidebar.reconstructionTab.getValue("Offsets_Detector-v"))	
+		settings.setValue("Offsets_Detector-Roll", \
+			self.sidebar.reconstructionTab.getValue("Offsets_Detector-Roll"))
+		settings.setValue("Offsets_Detector-Pitch", \
+			self.sidebar.reconstructionTab.getValue("Offsets_Detector-Pitch"))	
+		settings.setValue("Offsets_Detector-Yaw", \
+			self.sidebar.reconstructionTab.getValue("Offsets_Detector-Yaw"))	
 
 		settings.setValue("ReconstructionAlgorithm_Upsampling", \
 			self.sidebar.reconstructionTab.getValue("ReconstructionAlgorithm_Upsampling"))     
@@ -878,14 +974,11 @@ class kstMainWindow(QMainWindow):
 		self.sidebar.preprocessingTab.setValue("Crop_Right", \
 			int(settings.value("Crop_Right", 0)))
 
-		self.sidebar.preprocessingTab.setValue("Low_DefectCorrection_DarkPixels", \
-			int(settings.value("Low_DefectCorrection_DarkPixels", 0)))
-		self.sidebar.preprocessingTab.setValue("Low_DefectCorrection_HotPixels", \
-			int(settings.value("Low_DefectCorrection_HotPixels", 65535)))
-		self.sidebar.preprocessingTab.setValue("High_DefectCorrection_DarkPixels", \
-			int(settings.value("High_DefectCorrection_DarkPixels", 0)))
-		self.sidebar.preprocessingTab.setValue("High_DefectCorrection_HotPixels", \
-			int(settings.value("High_DefectCorrection_HotPixels", 65535)))
+		self.sidebar.preprocessingTab.setValue("ProjectionAveraging_Mode", \
+			self.sidebar.preprocessingTab.projection_averaging_methods.index( \
+			settings.value("ProjectionAveraging_Mode", 0)))
+		self.sidebar.preprocessingTab.setValue("ProjectionAveraging_AlphaTrimmed", \
+			int(settings.value("ProjectionAveraging_AlphaTrimmed", 2))) 
 
         # Bug in PyQT (or at least unexpected behaviour):
 		if ( (str(settings.value("MatrixManipulation_Rebinning2x2")) == 'False') or  
@@ -898,9 +991,10 @@ class kstMainWindow(QMainWindow):
 			int(settings.value("FlatFielding_Window", 5))) 
 
 		self.sidebar.preprocessingTab.setValue("Despeckle_Threshold", \
-			float(settings.value("Despeckle_Threshold", 0.25))) 
-		self.sidebar.preprocessingTab.setValue("Despeckle_Window", \
-			int(settings.value("Despeckle_Window", 5))) 
+			float(settings.value("Despeckle_Threshold", 0.10))) 
+
+		self.sidebar.preprocessingTab.setValue("RingRemoval_Threshold", \
+			int(settings.value("RingRemoval_Threshold", 5))) 
 		
         # Bug in PyQT (or at least unexpected behaviour):
 		if ( (str(settings.value("Output_LowEnergy")) == 'False') or  
@@ -951,6 +1045,9 @@ class kstMainWindow(QMainWindow):
 			settings.value("ReconstructionAlgorithm_Method", 0)))
 		self.sidebar.reconstructionTab.setValue("ReconstructionAlgorithm_Iterations", \
 			int(settings.value("ReconstructionAlgorithm_Iterations", 200)))
+		self.sidebar.reconstructionTab.setValue("ReconstructionAlgorithm_FDK-Filter", \
+			self.sidebar.reconstructionTab.fdk_filters.index( \
+			settings.value("ReconstructionAlgorithm_FDK-Filter", 0)))
 		self.sidebar.reconstructionTab.setValue("ReconstructionAlgorithm_Weights", \
 			self.sidebar.reconstructionTab.weighting_methods.index( \
 			settings.value("ReconstructionAlgorithm_Weights", 0)))
@@ -964,6 +1061,12 @@ class kstMainWindow(QMainWindow):
 			float(settings.value("Offsets_Detector-u", 0.0)))		
 		self.sidebar.reconstructionTab.setValue("Offsets_Detector-v", \
 			float(settings.value("Offsets_Detector-v", 0.0)))
+		self.sidebar.reconstructionTab.setValue("Offsets_Detector-Roll", \
+			float(settings.value("Offsets_Detector-Roll", 0.0)))
+		self.sidebar.reconstructionTab.setValue("Offsets_Detector-Pitch", \
+			float(settings.value("Offsets_Detector-Pitch", 0.0)))
+		self.sidebar.reconstructionTab.setValue("Offsets_Detector-Yaw", \
+			float(settings.value("Offsets_Detector-Yaw", 0.0)))
 		
 
          # Bug in PyQT (or at least unexpected behaviour):

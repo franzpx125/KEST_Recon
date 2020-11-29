@@ -1,6 +1,7 @@
-import os.path
+﻿import os.path
+import numpy
 
-from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy
+from PyQt5.QtWidgets import QWidget,  QAction, QVBoxLayout, QToolBar, QSizePolicy, QHBoxLayout
 from PyQt5.QtWidgets import QToolButton, QSpacerItem, QLabel, QComboBox, QSlider, QFileDialog
 from PyQt5.QtGui import QIcon, QFont, QBrush, QColor, QPalette
 from PyQt5.QtCore import Qt
@@ -46,13 +47,16 @@ class kstImageViewer(QWidget):
 		self.__originalMode = mode
 
 		# Set the type of image with respect of the lightfield pipeline:        
-		self.__imageType = type      # 'raw', 'lightfield', 'refocused', 'depth_map'
+		self.__imageType = type      # 'raw', 'pre-processed', 'reconstructed', 'post-processed'
 
 		# The actual object handled by the image viewer:
 		self.__data = data
 
 		# Properties:
-		self.__sourceFile = sourceFile			
+		self.__sourceFile = sourceFile		
+		
+		# Current view index:
+		self.__view = 0	
 		
 		# Top toolbar:
 		self.topToolBar = QToolBar()
@@ -157,36 +161,62 @@ class kstImageViewer(QWidget):
 		"""
 		
 		bottomToolbarSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)        
-		self.bottomToolBar.setSizePolicy(bottomToolbarSizePolicy)		
+		self.bottomToolBar.setSizePolicy(bottomToolbarSizePolicy)	
+	
+		# Combo box for the 4 "views" of a dataset:
+		self.lblView = QLabel(" View: ")   # Use spaces		
+		self.lblViewAction = self.bottomToolBar.addWidget(self.lblView)			
 
-
-		# Combo box for the 4 "views" of a light-field image:
-		self.lblLightField = QLabel(" View: ")   # Use spaces		
-		self.lblLightFieldAction = self.bottomToolBar.addWidget(self.lblLightField)	
-		self.lblLightFieldAction.setVisible(False)	
-
-		self.cbxLightField = QComboBox()
-		self.cbxLightFieldAction = self.bottomToolBar.addWidget(self.cbxLightField)	
-		self.cbxLightFieldAction.setVisible(False)	
-
+		self.cbxView = QComboBox()
+		self.cbxView.addItems(["Projection/Axial", "Sinogram/Sagittal", "Lateral/Frontal"])
+		self.cbxView.currentIndexChanged.connect(self.changeView)
+		self.cbxViewAction = self.bottomToolBar.addWidget(self.cbxView)	
+		
+	
 		self.indexLabel = QLabel(self)
 		self.indexLabel.setText("")
-		self.bottomToolBar.addWidget(self.indexLabel) 
+		self.indexLabel.setFixedWidth(70)
+		self.indexLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+		self.bottomToolBar.addWidget(self.indexLabel)
 
 
-		# Slider for the refocusing:
-		self.lblSlider = QLabel(" Images: ") # Use spaces
-		self.lblSliderAction = self.bottomToolBar.addWidget(self.lblSlider)		
+		# Slider for the projection/slices:
+		self.lblImageSlider = QLabel(" Image: ") # Use spaces
+		self.lblImageSliderAction = self.bottomToolBar.addWidget(self.lblImageSlider)
 		
 		self.sldDataset = QSlider(Qt.Horizontal) 
-		self.sldDataset.setFixedWidth(150)
+		self.sldDataset.setFixedWidth(250)
 		self.sldDataset.setFocusPolicy(Qt.StrongFocus)
 		self.sldDataset.setTickPosition(QSlider.TicksBelow)
+		self.sldDataset.valueChanged.connect(self.changeDatasetView)		
 		self.sldDatasetAction = self.bottomToolBar.addWidget(self.sldDataset)		
-		self.sldDataset.valueChanged.connect(self.changeDatasetView)
+		
+		# Slider for the repetitions:
+		self.lblRepetitionIndex = QLabel(self)
+		self.lblRepetitionIndex.setText("")
+		self.lblRepetitionIndex.setFixedWidth(50)
+		self.lblRepetitionIndex.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+		self.bottomToolBar.addWidget(self.lblRepetitionIndex)
 
-		# Spacer:
-		#self.bottomToolBar.addWidget(spacer)
+		self.lblRepetitionSlider = QLabel(" Repetition: ") # Use spaces
+		self.lblRepetitionSlider.setFixedWidth(80)
+		self.lblRepetitionSlider.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+		self.lblRepetitionSliderAction = self.bottomToolBar.addWidget(self.lblRepetitionSlider)		
+		
+		self.sldRepetition = QSlider(Qt.Horizontal) 
+		self.sldRepetition.setFixedWidth(150)
+		self.sldRepetition.setFocusPolicy(Qt.StrongFocus)
+		self.sldRepetition.setTickPosition(QSlider.TicksBelow)
+		self.sldRepetition.valueChanged.connect(self.changeRepetitionView)
+		self.sldRepetitionAction = self.bottomToolBar.addWidget(self.sldRepetition)		
+			
+
+		if self.__data.ndim == 4:
+			self.lblRepetitionSliderAction.setVisible(True)
+			self.sldRepetitionAction.setVisible(True)
+		else:
+			self.lblRepetitionSliderAction.setVisible(False)
+			self.sldRepetitionAction.setVisible(False)
 			
 
 	#def drawBackground(self, painter, rect):
@@ -275,28 +305,36 @@ class kstImageViewer(QWidget):
 
 		# Enable/disable UI widgets:
 		if (self.__imageType == 'raw'):
-			self.lblLightFieldAction.setVisible(False)
-			self.cbxLightFieldAction.setVisible(False)
-			self.lblSliderAction.setVisible(True)
+			self.lblViewAction.setVisible(True)
+			self.cbxViewAction.setVisible(True)
+			self.lblImageSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
-			#self.fooWidgetAction.setVisible(True)
-			#self.extraSeparatorAction.setVisible(True)
+			if self.__data.ndim == 4:
+				self.lblRepetitionSliderAction.setVisible(True)
+				self.lblRepetitionIndex.setVisible(True)
+				self.sldRepetitionAction.setVisible(True)
+			else:
+				self.lblRepetitionSliderAction.setVisible(False)
+				self.lblRepetitionIndex.setVisible(False)
+				self.sldRepetitionAction.setVisible(False)
 
 		elif (self.__imageType == 'pre-processed'):
-			self.lblLightFieldAction.setVisible(False)
-			self.cbxLightFieldAction.setVisible(False)
-			self.lblSliderAction.setVisible(True)
+			self.lblViewAction.setVisible(True)
+			self.cbxViewAction.setVisible(True)
+			self.lblImageSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
-			#self.fooWidgetAction.setVisible(True)
-			#self.extraSeparatorAction.setVisible(True)
+			self.sldRepetitionAction.setVisible(False)
+			self.lblRepetitionIndex.setVisible(False)
+			self.lblRepetitionSliderAction.setVisible(False)
 
 		elif (self.__imageType == 'reconstructed'):
-			self.lblLightFieldAction.setVisible(False)
-			self.cbxLightFieldAction.setVisible(False)
-			self.lblSliderAction.setVisible(True)
+			self.lblViewAction.setVisible(True)
+			self.cbxViewAction.setVisible(True)
+			self.lblImageSliderAction.setVisible(True)
 			self.sldDatasetAction.setVisible(True)
-			#self.fooWidgetAction.setVisible(True)
-			#self.extraSeparatorAction.setVisible(True)
+			self.sldRepetitionAction.setVisible(False)
+			self.lblRepetitionIndex.setVisible(False)
+			self.lblRepetitionSliderAction.setVisible(False)
 
 		# Set dimension of the slider and default:
 		self.sldDataset.setMinimum(0)
@@ -307,17 +345,99 @@ class kstImageViewer(QWidget):
 			+ "/" + str(round(self.__data.shape[2])))
 
 
-	def changeDatasetView(self):
-		""" Called when the slider is moved, so user wants to see a different
-			refocused image.
+	def changeView(self, idx):
+		""" Called when the combo box index is changed.
 		"""
-		val = int(self.sldDataset.value())
+		# Reset sliders:
+		self.sldDataset.setValue(0)
+		if self.__data.ndim == 4:
+			self.sldRepetition.setValue(0)
+	
+		# Transpose datasets:
+		if idx == 0: # Axial or projection view:
+			if self.__data.ndim == 4:
+				if self.__view == 1:
+					self.__data = numpy.transpose(self.__data, (2,1,0,3)) # OK
+				if self.__view == 2:
+					self.__data = numpy.transpose(self.__data, (1,2,0,3)) # OK
+			else:
+				if self.__view == 1:				    
+					self.__data = numpy.transpose(self.__data, (2,1,0))   # OK
+				if self.__view == 2:
+					self.__data = numpy.transpose(self.__data, (1,2,0))   # OK
+
+		elif idx == 1: # Sinogram of sagittal view:
+			if self.__data.ndim == 4:
+				if self.__view == 0:
+					self.__data = numpy.transpose(self.__data, (2,1,0,3)) # OK
+				if self.__view == 2:
+					self.__data = numpy.transpose(self.__data, (0,2,1,3)) # OK
+			else:
+				if self.__view == 0:				    
+					self.__data = numpy.transpose(self.__data, (2,1,0))   # OK
+				if self.__view == 2:
+					self.__data = numpy.transpose(self.__data, (0,2,1))   # OK
+
+		else: # Lateral or coronal view:
+			if self.__data.ndim == 4:
+				if self.__view == 0:
+					self.__data = numpy.transpose(self.__data, (2,0,1,3)) # OK
+				if self.__view == 1:
+					self.__data = numpy.transpose(self.__data, (0,2,1,3)) # OK
+			else:
+				if self.__view == 0:				    
+					self.__data = numpy.transpose(self.__data, (2,0,1))   # OK
+				if self.__view == 1:
+					self.__data = numpy.transpose(self.__data, (0,2,1))   # OK
+
+		# Set new view:
+		self.__view = idx
+
 
 		# Change to the new numpy image:
-		self.imagePanel.changeImage(self.__data[:,:,val])
+		if self.__data.ndim == 4:
+			self.imagePanel.changeImage(self.__data[:,:,round(self.__data.shape[2]/2),round(self.__data.shape[3]/2)])
+		else:
+			self.imagePanel.changeImage(self.__data[:,:,round(self.__data.shape[2]/2)])
 
 		# Set the index:
-		self.indexLabel.setText(str(val) + "/" + str(round(self.__data.shape[2])))
+		self.sldDataset.setMinimum(0)
+		self.sldDataset.setMaximum(self.__data.shape[2]-1)
+		self.sldDataset.setValue(round(self.__data.shape[2]/2))
+	
+		# Reset zoom:
+		self.imagePanel.performZoom(1.0)
+
+	def changeDatasetView(self):
+		""" Called when the slider is moved, so user wants to see a different 
+            projection or slice.
+		"""
+		val = int(self.sldDataset.value())		
+
+		# Change to the new numpy image:
+		if self.__data.ndim == 4:
+			rep = int(self.sldRepetition.value())
+			self.imagePanel.changeImage(self.__data[:,:,val,rep])            
+			#self.sldRepetition.setValue(round(self.__data.shape[3]/2))
+		else:
+			self.imagePanel.changeImage(self.__data[:,:,val])
+
+		# Set the index:
+		self.indexLabel.setText(str(val + 1) + "/" + str(round(self.__data.shape[2])))
+
+
+	def changeRepetitionView(self):
+		""" Called when the slider is moved, so user wants to see a different
+			repetition of the same projection.
+		"""
+		img = int(self.sldDataset.value())
+		val = int(self.sldRepetition.value())
+
+		# Change to the new numpy image:
+		self.imagePanel.changeImage(self.__data[:,:,img,val])
+
+		# Set the index:
+		self.lblRepetitionIndex.setText(str(val+1) + "/" + str(round(self.__data.shape[3])))
 			
 
 	def getType(self):

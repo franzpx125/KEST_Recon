@@ -39,7 +39,10 @@ class kstImagePanel(QWidget):
 		"""			
 
 		# Get the central image by default:
-		im = data[:,:,round(data.shape[2] / 2)]
+		if data.ndim == 4:
+			im = data[:,:,round(data.shape[2] / 2),round(data.shape[3] / 2)]
+		else:
+			im = data[:,:,round(data.shape[2] / 2)]
 
 		# Create the image viewer:
 		imageViewer = kstImageViewer(sourceFile, data, type, im, mode)
@@ -48,6 +51,11 @@ class kstImagePanel(QWidget):
 		imageViewer.sldDataset.setMinimum(0)
 		imageViewer.sldDataset.setMaximum(data.shape[2]-1)
 		imageViewer.sldDataset.setValue(round(data.shape[2]/2))
+
+		if data.ndim == 4:
+			imageViewer.sldRepetition.setMinimum(0)
+			imageViewer.sldRepetition.setMaximum(data.shape[3]-1)
+			imageViewer.sldRepetition.setValue(round(data.shape[3]/2))
 
 		# Add a new tab:
 		self.tabImageViewers.addTab(imageViewer, tabname)	

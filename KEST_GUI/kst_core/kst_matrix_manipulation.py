@@ -1,4 +1,5 @@
 ﻿from numpy import float32, pad, arange, repeat, reshape
+from numpy import sort, nanmean, nansum, squeeze, rint
 from scipy.interpolate import interp2d
 
 import tifffile
@@ -31,6 +32,8 @@ def rebinning2x2(im):
 	im_SE = im[1:-1:2, 1:-1:2]
 	
 	return (im_C + im_E + im_S + im_SE).astype(float32)
+
+
 
 def upscaling2x2(im, method='repeat'):
 	"""Perform 2x2 upscaling with either repetition or interpolation.
@@ -74,9 +77,66 @@ def upscaling2x2(im, method='repeat'):
 		y_out = arange(0, im.shape[1], 0.5)
 
 		# Apply interpolation:
-		im = f(y_out, x_out)
+		#im = f(y_out, x_out)
 
 	return im.astype(float32)
 
 
 
+def proj_averaging(im, method='average', alpha=2):
+	"""Perform alpha-trimmed projection averaging or selection.
+
+	Parameters
+	----------
+	im : array_like
+		Image data as 4D numpy array (the 4-th 
+		dimension is the dimension to process).
+
+	method : {'median','average','sum','minimum,'maximum','extract'}
+		Type of projection averaging.
+
+	alpha
+
+	Return
+	----------
+	im : array_like
+		Image data as 3D numpy array.
+
+	"""	
+
+	# Extraction does not need sorting:
+	if (method == 'extract'):
+		if ((alpha >= 0) and (alpha < im.shape[3])):
+			im = im[:,:,:,alpha]
+		else:
+			# Default extraction with 0-th image:
+			im = im[:,:,:,0]
+
+	elif (method == 'sum'):	
+			if ((alpha >= 0) and (alpha < im.shape[3])):
+				im = im[:,:,:,0:alpha]
+				im = nansum(im, axis=3)
+			else:
+				# Sum all:
+				im = nansum(im, axis=3)
+	
+	else:
+        # Combine remaining images:
+		im = sort(im, axis=3)
+		# Perform alpha-trimming (if alpha == 0 do nothing):
+		if ((alpha > 0) and (alpha < rint(im.shape[3] / 2))):					
+			im = im[:,:,:,alpha:-alpha]
+
+		if (method == 'median'):
+			im = im[:,:,:,rint(im.shape[3] / 2.0)]
+		elif (method == 'minimum'):
+			im = im[:,:,:,0]
+		elif (method == 'maximum'):
+			im = im[:,:,:,-1]
+		else: # 'average'
+			im = nanmean(im.astype(float32), axis=3)
+
+	# Remove the 4th dimension (usually not necessary):
+	im = squeeze(im)
+
+	return im

@@ -1,4 +1,5 @@
-from numpy import arange, tile, fromfile, delete, reshape, zeros
+from numpy import arange, tile, fromfile, delete, reshape, zeros, transpose
+from numpy import nanmedian, nanmean, nansum
 from glob import glob
 from tifffile import imread
 
@@ -90,11 +91,11 @@ def read_pixirad_stepgo (path, mode='2COL'):
 	
 	"""
 
-	tomo_files = sorted(glob(path))
+	tomo_files = sorted(glob(path + '//*'))
 	num_files = len(tomo_files)
 
     # Read first to understand sizes:
-	tomo = read_pixirad_data (tomo_files[0], mode)
+	tomo, _ = read_pixirad_data (tomo_files[0], '1COL')
 
 	# Prepare dataset:
 	data = zeros((tomo.shape[0], tomo.shape[1], tomo.shape[2], num_files), tomo.dtype)
@@ -102,19 +103,75 @@ def read_pixirad_stepgo (path, mode='2COL'):
 	# Read all files:
 	for i in range(0, num_files):    
 		
-		im = read_pixirad_data (tomo_files[i], mode)
+		im, _ = read_pixirad_data (tomo_files[i], '1COL')
 		data[:,:,:,i] = im
 
+	
+	# Put repetition at last:
+	data = transpose(data, (0,1,3,2))
+		
 	if ( mode == '2COL'):
 		# Extract low and high:
-		low  = data[:,:,::2,:]
-		high = data[:,:,1::2,:]	
+		low  = data[:,:,:,::2]
+		high = data[:,:,:,1::2]	
 
 		return low, high
 
 	else:
-        # Only 1COL mode is used:
+		# Only 1COL mode is used:
 		return data, None
+
+def read_pixirad_stepgo_test (path, mode='2COL', crop=[0,0,0,0]):
+	""" Read a sequence of PIXIRAD raw data as specified in the input path. The 
+        output will be a 4D structure having the repetition along the 4-th dim.
+        
+        Some projection averaging along the 4-th dimension should be considered
+        prior to reconstruction.
+
+        Parameters
+	    ----------
+	    path : string
+		    Path where the sequence of pixirad data files are stored. 
+
+	    mode : string of the set {'2COL', '1COL'}
+		    The single file might contain either 2 images or just one.
+
+	    Return
+	    ----------
+	    data | low, high : array_like
+		    Image data as 4D matrix (or two 4D matrices)
+	
+	"""
+
+	tomo_files = sorted(glob(path + '//*'))
+	num_files = len(tomo_files)
+
+    # Read first to understand sizes:
+	tomo, _ = read_pixirad_data (tomo_files[0], '1COL', crop)
+
+	# Prepare dataset:
+	data_low = zeros((tomo.shape[0], tomo.shape[1], num_files), tomo.dtype)
+	data_high = zeros((tomo.shape[0], tomo.shape[1], num_files), tomo.dtype)
+	
+	# Read all files:
+	for i in range(0, num_files):    
+		
+		low, high = read_pixirad_data (tomo_files[i], mode , crop)
+
+        # Medianize:
+		data_low[:,:,i] = nanmedian(low, axis=2)
+
+        # If 2COL mode:
+		if (high is not None):
+			data_high[:,:,i] = nanmedian(high, axis=2)
+
+    # Return (depending on mode):
+	if ( mode == '2COL'):
+		return data_low, data_high
+
+	else:
+		return data_low, None
+
 
 
 def read_tiff_sequence (path):

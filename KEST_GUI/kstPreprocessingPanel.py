@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QLineEdit, QVBoxLayout
+﻿from PyQt5.QtWidgets import QApplication, QLineEdit, QVBoxLayout
 from PyQt5.QtCore import QVariant, QSize
 #    QDate, 
 #    QTime, 
@@ -32,6 +32,9 @@ class kstPreprocessingPanel(QWidget):
     # Event raised when the user wants to perform the auto calibrate:
 	calibrateRequestedEvent = pyqtSignal()
 
+    # Available projection averaging methods:
+	projection_averaging_methods = ('average', 'median', 'sum', 'minimum', 'maximum','extract')
+
 	def __init__(self):
 		""" Class constructor.
 		"""
@@ -44,8 +47,8 @@ class kstPreprocessingPanel(QWidget):
 		self.variantManager.valueChangedSignal.connect(self.valueChanged)
 
         # Un/comment the following two lines for a different look & feel:
-		#self.variantEditor = QtGroupBoxPropertyBrowser()
-		self.variantEditor = QtTreePropertyBrowser()
+		self.variantEditor = QtGroupBoxPropertyBrowser()
+		#self.variantEditor = QtTreePropertyBrowser()
 		self.variantFactory = QtVariantEditorFactory()
 		self.variantEditor.setFactoryForManager(self.variantManager, self.variantFactory)
 
@@ -56,16 +59,10 @@ class kstPreprocessingPanel(QWidget):
 		spacerSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum) 
 		btnWidgetSpacer.setSizePolicy(spacerSizePolicy)
 
-        # Calibrate button (left aligned):
-		self.btnPreview = QPushButton('Auto dark/hot', self)
-		self.btnPreview.clicked.connect(self.handleCalibrate)
 
         # Apply button (right aligned):
 		self.btnApply = QPushButton('Apply', self)
 		self.btnApply.clicked.connect(self.handleApply)
-
-        # Compose the layout with the buttons and the spacer:
-		btnWidgetLayout.addWidget(self.btnPreview)
 		btnWidgetLayout.addWidget(btnWidgetSpacer)  
 		btnWidgetLayout.addWidget(self.btnApply)    
 		btnWidgetLayout.setContentsMargins(0,0,0,0)	
@@ -77,7 +74,7 @@ class kstPreprocessingPanel(QWidget):
 		spacer.setSizePolicy(spacerSizePolicy)
 
 
-                # Configuration of the properties manager:
+        # Configuration of the properties manager:
 		self.cropItem = self.variantManager.addProperty(\
             QtVariantPropertyManager.groupTypeId(), "Crop")
 		
@@ -117,47 +114,28 @@ class kstPreprocessingPanel(QWidget):
 		self.cropItem.addSubProperty(item)        
 		self.addProperty(item, "Crop_Right")
 
-	
-        # Configuration of the properties manager:
-		self.defectCorrectionItem = self.variantManager.addProperty(\
-            QtVariantPropertyManager.groupTypeId(), "Defect correction")
+         # Configuration of the properties manager:
+		self.projectionAveragingItem = self.variantManager.addProperty(\
+            QtVariantPropertyManager.groupTypeId(), "Projection averaging")
+
 		
-		item = self.variantManager.addProperty(QVariant.Int, "Low - Dark threshold")
-		item.setValue(0) # default for dead pixels
+		item = self.variantManager.addProperty(QtVariantPropertyManager.enumTypeId(),"Mode")
+		enumNames = QList()
+		for method in kstPreprocessingPanel.projection_averaging_methods:  
+			enumNames.append(method)
+		item.setAttribute("enumNames", enumNames)
+		item.setValue(0) 
+		self.projectionAveragingItem.addSubProperty(item)        
+		self.addProperty(item, "ProjectionAveraging_Mode")
+
+		item = self.variantManager.addProperty(QVariant.Int, "Alpha-trimmed")
+		item.setValue(2) # default for dead pixels
 		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 65535)
+		item.setAttribute("maximum", 10)
 		item.setAttribute("singleStep", 1)
 		item.setEnabled(True) # default
-		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "Low_DefectCorrection_DarkPixels")
-
-		item = self.variantManager.addProperty(QVariant.Int, "Low - Hot threshold")
-		item.setValue(65535) # default for hot pixels
-		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 65535)
-		item.setAttribute("singleStep", 1)
-		item.setEnabled(True) # default
-		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "Low_DefectCorrection_HotPixels")
-
-		item = self.variantManager.addProperty(QVariant.Int, "High - Dark threshold")
-		item.setValue(0) # default for dead pixels
-		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 65535)
-		item.setAttribute("singleStep", 1)
-		item.setEnabled(True) # default
-		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "High_DefectCorrection_DarkPixels")
-
-		item = self.variantManager.addProperty(QVariant.Int, "High - Hot threshold")
-		item.setValue(65535) # default for hot pixels
-		item.setAttribute("minimum", 0)
-		item.setAttribute("maximum", 65535)
-		item.setAttribute("singleStep", 1)
-		item.setEnabled(True) # default
-		self.defectCorrectionItem.addSubProperty(item)        
-		self.addProperty(item, "High_DefectCorrection_HotPixels")
-
+		self.projectionAveragingItem.addSubProperty(item)        
+		self.addProperty(item, "ProjectionAveraging_AlphaTrimmed")
 
 
         # Configuration of the properties manager:
@@ -182,26 +160,26 @@ class kstPreprocessingPanel(QWidget):
 		self.addProperty(item, "FlatFielding_Window")
 
 
-		self.despeckleItem = self.variantManager.addProperty(\
-		QtVariantPropertyManager.groupTypeId(), "Despeckle")
+		self.correctionItem = self.variantManager.addProperty(\
+		QtVariantPropertyManager.groupTypeId(), "Image correction")
 	
-		item = self.variantManager.addProperty(QVariant.Double, "Threshold")
-		item.setValue(0.1) # default for dead pixels
+		item = self.variantManager.addProperty(QVariant.Double, "Despeckle")
+		item.setValue(0.25) # default for dead pixels
 		item.setAttribute("minimum", 0.0)
 		item.setAttribute("maximum", 1.0)
 		item.setAttribute("singleStep", 0.1)
 		item.setEnabled(True) # default
-		self.despeckleItem.addSubProperty(item)        
+		self.correctionItem.addSubProperty(item)        
 		self.addProperty(item, "Despeckle_Threshold")
 
-		item = self.variantManager.addProperty(QVariant.Int, "Window")
-		item.setValue(5) # default for dead pixels
-		item.setAttribute("minimum", 3)
-		item.setAttribute("maximum", 11)
-		item.setAttribute("singleStep", 2)
-		item.setEnabled(True) # default
-		self.despeckleItem.addSubProperty(item)        
-		self.addProperty(item, "Despeckle_Window")
+		#item = self.variantManager.addProperty(QVariant.Int, "Ring removal")
+		#item.setValue(5) # default for dead pixels
+		#item.setAttribute("minimum", 3)
+		#item.setAttribute("maximum", 99)
+		#item.setAttribute("singleStep", 2)
+		#item.setEnabled(True) # default
+		#self.correctionItem.addSubProperty(item)        
+		#self.addProperty(item, "RingRemoval_Threshold")
 
 
 		self.outputItem = self.variantManager.addProperty(\
@@ -229,10 +207,10 @@ class kstPreprocessingPanel(QWidget):
 
 		
 		self.variantEditor.addProperty(self.cropItem)	
-		self.variantEditor.addProperty(self.defectCorrectionItem)
-		self.variantEditor.addProperty(self.matrixManipulationItem)
+		self.variantEditor.addProperty(self.projectionAveragingItem)
 		self.variantEditor.addProperty(self.flatFieldingItem)
-		self.variantEditor.addProperty(self.despeckleItem)
+		self.variantEditor.addProperty(self.matrixManipulationItem)		
+		self.variantEditor.addProperty(self.correctionItem)
 		self.variantEditor.addProperty(self.outputItem)
 
 
@@ -267,10 +245,17 @@ class kstPreprocessingPanel(QWidget):
 	def getValue(self, id):
 		""" Get the value of the specified property.
 		"""
-		if (self.idToProperty.contains(id)):
+		if (not self.idToProperty.contains(id)):
+			return
 
-			p = self.idToProperty[id]
-			return self.variantManager.value(p)
+		p = self.idToProperty[id]
+		val = self.variantManager.value(p)
+
+		# Return a string for the combo boxes:
+		if (id == "ProjectionAveraging_Mode"):				
+			val = kstPreprocessingPanel.projection_averaging_methods[val]
+
+		return val
 
 
 	def setValue(self, id, val):
