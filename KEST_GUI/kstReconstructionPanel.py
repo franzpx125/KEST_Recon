@@ -296,8 +296,8 @@ class kstReconstructionPanel(QWidget):
 		self.addProperty(item, "RingRem_Vertical")
 
 		# Un/comment the following two lines for a different look & feel
-		self.variantEditor = QtGroupBoxPropertyBrowser()
-		#self.variantEditor = QtTreePropertyBrowser()
+		self.variantEditor = QtGroupBoxPropertyBrowser() 
+		#self.variantEditor = QtTreePropertyBrowser() # Not working in Python 3.8
 
 		self.variantEditor.setFactoryForManager(self.variantManager, self.variantFactory)
 		self.variantEditor.addProperty(self.geometryItem)
