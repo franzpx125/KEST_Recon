@@ -15,4 +15,4 @@ C-developed code for the project:
 To enable GPU monitoring:
 - Install locally CUDA Toolkit in order to have nvidia-smi
 - Add to system PATH the following line: C:\Program Files\NVIDIA Corporation\NVSMI
-- Add GpUtil with the command line: pip install gputil
+- Add GPUtil with the command line: pip install gputil (https://pypi.org/project/GPUtil/)
