@@ -24,13 +24,6 @@ from os.path import splitext, isfile, isdir
 
 import cv2
 
-#from . import kst_io
-#from . import kst_flat_fielding
-#from . import kst_matrix_manipulation
-#from . import kst_remove_outliers
-#from . import kst_ring_removal
-
-
 
 def _medfilt(x, k):
 	"""Apply a length-k median filter to a 1D array x.
